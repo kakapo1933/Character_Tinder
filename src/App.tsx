@@ -29,7 +29,8 @@ function App() {
   }, [accessToken, validateDestinationFolder])
 
   // Handle OAuth callback (works with both /callback and /Character_Tinder/callback)
-  if (window.location.pathname.endsWith('/callback')) {
+  // Also handle when redirected from 404.html with access_token in hash
+  if (window.location.pathname.endsWith('/callback') || window.location.hash.includes('access_token')) {
     return <OAuthCallback />
   }
 

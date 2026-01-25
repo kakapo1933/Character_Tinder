@@ -13,7 +13,8 @@ export function OAuthCallback() {
       fetchUserInfo(accessToken).then((user) => {
         if (user) {
           login(user, accessToken)
-          window.location.href = '/'
+          // Use base URL for GitHub Pages compatibility
+          window.location.href = import.meta.env.BASE_URL || '/'
         }
       })
     }
