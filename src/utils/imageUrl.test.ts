@@ -7,6 +7,11 @@ describe('buildDriveImageUrl', () => {
     expect(url).toContain('sz=w2048')
   })
 
+  it('should include authuser parameter for authentication', () => {
+    const url = buildDriveImageUrl('file-123')
+    expect(url).toContain('authuser=0')
+  })
+
   it('should include file ID in URL', () => {
     const url = buildDriveImageUrl('my-file-id')
     expect(url).toContain('id=my-file-id')
