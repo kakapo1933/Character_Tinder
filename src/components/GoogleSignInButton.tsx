@@ -5,8 +5,9 @@ export function GoogleSignInButton() {
   const { isAuthenticated, user, logout } = useAuthStore()
 
   const handleSignIn = () => {
-    const basePath = import.meta.env.BASE_URL || '/'
-    const redirectUri = `${window.location.origin}${basePath}callback`
+    // In development, use /callback; in production, use BASE_URL + callback
+    const callbackPath = import.meta.env.DEV ? '/callback' : `${import.meta.env.BASE_URL}callback`
+    const redirectUri = `${window.location.origin}${callbackPath}`
     const params = new URLSearchParams({
       client_id: config.googleClientId,
       redirect_uri: redirectUri,
