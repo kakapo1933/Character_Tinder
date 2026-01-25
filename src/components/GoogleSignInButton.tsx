@@ -5,9 +5,11 @@ export function GoogleSignInButton() {
   const { isAuthenticated, user, logout } = useAuthStore()
 
   const handleSignIn = () => {
+    const basePath = import.meta.env.BASE_URL || '/'
+    const redirectUri = `${window.location.origin}${basePath}callback`
     const params = new URLSearchParams({
       client_id: config.googleClientId,
-      redirect_uri: `${window.location.origin}/callback`,
+      redirect_uri: redirectUri,
       response_type: 'token',
       scope: config.googleScopes,
       include_granted_scopes: 'true',

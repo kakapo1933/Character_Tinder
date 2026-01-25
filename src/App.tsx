@@ -28,8 +28,8 @@ function App() {
     }
   }, [accessToken, validateDestinationFolder])
 
-  // Handle OAuth callback
-  if (window.location.pathname === '/callback') {
+  // Handle OAuth callback (works with both /callback and /Character_Tinder/callback)
+  if (window.location.pathname.endsWith('/callback')) {
     return <OAuthCallback />
   }
 
