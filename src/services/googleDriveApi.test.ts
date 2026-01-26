@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from '../mocks/server'
-import { listFolders, listSharedFolders, listImages, listAllImages, copyFile, deleteFile, createFolder, getFolder, type DriveFolder, type DriveImage } from './googleDriveApi'
+import { listFolders, listSharedFolders, listSharedDrives, listSharedDriveFolders, listImages, listAllImages, copyFile, deleteFile, createFolder, getFolder, type DriveFolder, type DriveImage, type SharedDrive } from './googleDriveApi'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
+const DRIVES_API = 'https://www.googleapis.com/drive/v3/drives'
 
 describe('googleDriveApi', () => {
   describe('listFolders', () => {
@@ -122,6 +123,200 @@ describe('googleDriveApi', () => {
       )
 
       const folders = await listFolders('mock-token')
+      expect(requestCount).toBe(2)
+      expect(folders).toHaveLength(2)
+    })
+  })
+
+  describe('listSharedDrives', () => {
+    const mockSharedDrives: SharedDrive[] = [
+      { id: 'drive-1', name: 'Team Drive' },
+      { id: 'drive-2', name: 'Company Assets' },
+    ]
+
+    it('returns list of shared drives', async () => {
+      server.use(
+        http.get(DRIVES_API, () => {
+          return HttpResponse.json({ drives: mockSharedDrives })
+        })
+      )
+
+      const drives = await listSharedDrives('mock-token')
+      expect(drives).toEqual(mockSharedDrives)
+    })
+
+    it('sends authorization header', async () => {
+      let authHeader: string | null = null
+      server.use(
+        http.get(DRIVES_API, ({ request }) => {
+          authHeader = request.headers.get('Authorization')
+          return HttpResponse.json({ drives: [] })
+        })
+      )
+
+      await listSharedDrives('my-token')
+      expect(authHeader).toBe('Bearer my-token')
+    })
+
+    it('returns empty array when no shared drives', async () => {
+      server.use(
+        http.get(DRIVES_API, () => HttpResponse.json({ drives: [] }))
+      )
+
+      const drives = await listSharedDrives('mock-token')
+      expect(drives).toEqual([])
+    })
+
+    it('throws on API error', async () => {
+      server.use(
+        http.get(DRIVES_API, () => HttpResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      )
+
+      await expect(listSharedDrives('bad-token')).rejects.toThrow()
+    })
+
+    it('fetches all pages when pagination exists', async () => {
+      let requestCount = 0
+      server.use(
+        http.get(DRIVES_API, ({ request }) => {
+          requestCount++
+          const url = new URL(request.url)
+          const pageToken = url.searchParams.get('pageToken')
+
+          if (!pageToken) {
+            return HttpResponse.json({
+              drives: [{ id: 'drive-1', name: 'Drive 1' }],
+              nextPageToken: 'page2',
+            })
+          } else {
+            return HttpResponse.json({
+              drives: [{ id: 'drive-2', name: 'Drive 2' }],
+            })
+          }
+        })
+      )
+
+      const drives = await listSharedDrives('mock-token')
+      expect(requestCount).toBe(2)
+      expect(drives).toHaveLength(2)
+    })
+  })
+
+  describe('listSharedDriveFolders', () => {
+    const mockFolders: DriveFolder[] = [
+      { id: 'folder-1', name: 'Project A' },
+      { id: 'folder-2', name: 'Project B' },
+    ]
+
+    it('returns list of folders in shared drive root', async () => {
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const corpora = url.searchParams.get('corpora')
+          const driveId = url.searchParams.get('driveId')
+          const q = url.searchParams.get('q') || ''
+
+          if (corpora === 'drive' && driveId === 'shared-drive-123' && q.includes("'shared-drive-123' in parents")) {
+            return HttpResponse.json({ files: mockFolders })
+          }
+          return HttpResponse.json({ files: [] })
+        })
+      )
+
+      const folders = await listSharedDriveFolders('mock-token', 'shared-drive-123')
+      expect(folders).toEqual(mockFolders)
+    })
+
+    it('returns list of folders in subfolder of shared drive', async () => {
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const corpora = url.searchParams.get('corpora')
+          const driveId = url.searchParams.get('driveId')
+          const q = url.searchParams.get('q') || ''
+
+          if (corpora === 'drive' && driveId === 'shared-drive-123' && q.includes("'parent-folder-id' in parents")) {
+            return HttpResponse.json({ files: mockFolders })
+          }
+          return HttpResponse.json({ files: [] })
+        })
+      )
+
+      const folders = await listSharedDriveFolders('mock-token', 'shared-drive-123', 'parent-folder-id')
+      expect(folders).toEqual(mockFolders)
+    })
+
+    it('sends authorization header', async () => {
+      let authHeader: string | null = null
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          authHeader = request.headers.get('Authorization')
+          return HttpResponse.json({ files: [] })
+        })
+      )
+
+      await listSharedDriveFolders('my-token', 'drive-id')
+      expect(authHeader).toBe('Bearer my-token')
+    })
+
+    it('includes supportsAllDrives parameter', async () => {
+      let supportsAllDrives: string | null = null
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          supportsAllDrives = url.searchParams.get('supportsAllDrives')
+          return HttpResponse.json({ files: [] })
+        })
+      )
+
+      await listSharedDriveFolders('mock-token', 'drive-id')
+      expect(supportsAllDrives).toBe('true')
+    })
+
+    it('includes includeItemsFromAllDrives parameter', async () => {
+      let includeItems: string | null = null
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          includeItems = url.searchParams.get('includeItemsFromAllDrives')
+          return HttpResponse.json({ files: [] })
+        })
+      )
+
+      await listSharedDriveFolders('mock-token', 'drive-id')
+      expect(includeItems).toBe('true')
+    })
+
+    it('throws on API error', async () => {
+      server.use(
+        http.get(DRIVE_API, () => HttpResponse.json({ error: 'Unauthorized' }, { status: 401 }))
+      )
+
+      await expect(listSharedDriveFolders('bad-token', 'drive-id')).rejects.toThrow()
+    })
+
+    it('fetches all pages when pagination exists', async () => {
+      let requestCount = 0
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          requestCount++
+          const url = new URL(request.url)
+          const pageToken = url.searchParams.get('pageToken')
+
+          if (!pageToken) {
+            return HttpResponse.json({
+              files: [{ id: 'folder-1', name: 'Folder 1' }],
+              nextPageToken: 'page2',
+            })
+          } else {
+            return HttpResponse.json({
+              files: [{ id: 'folder-2', name: 'Folder 2' }],
+            })
+          }
+        })
+      )
+
+      const folders = await listSharedDriveFolders('mock-token', 'drive-id')
       expect(requestCount).toBe(2)
       expect(folders).toHaveLength(2)
     })

@@ -7,6 +7,7 @@ import { FolderPicker } from './FolderPicker'
 import { useAuthStore } from '../stores/authStore'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
+const DRIVES_API = 'https://www.googleapis.com/drive/v3/drives'
 
 const mockRootFolders = [
   { id: 'folder-1', name: 'Photos 2024' },
@@ -26,6 +27,16 @@ const mockSharedFolders = [
 const mockImages = [
   { id: 'image-1', name: 'sunset.jpg' },
   { id: 'image-2', name: 'beach.png' },
+]
+
+const mockSharedDrives = [
+  { id: 'drive-1', name: 'Team Drive' },
+  { id: 'drive-2', name: 'Company Assets' },
+]
+
+const mockSharedDriveFolders = [
+  { id: 'sd-folder-1', name: 'Marketing' },
+  { id: 'sd-folder-2', name: 'Engineering' },
 ]
 
 describe('FolderPicker', () => {
@@ -290,6 +301,154 @@ describe('FolderPicker', () => {
     })
     expect(screen.getByText('Vacation')).toBeInTheDocument()
     expect(screen.getByText('Shared with me')).toBeInTheDocument()
+  })
+
+  describe('Shared Drives', () => {
+    beforeEach(() => {
+      server.use(
+        http.get(DRIVES_API, () => {
+          return HttpResponse.json({ drives: mockSharedDrives })
+        }),
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const q = url.searchParams.get('q') || ''
+          const corpora = url.searchParams.get('corpora')
+          const driveId = url.searchParams.get('driveId')
+
+          const isImageQuery = q.includes("mimeType contains 'image/'")
+          const isFolderQuery = q.includes("mimeType='application/vnd.google-apps.folder'")
+
+          // Handle shared drive folder queries
+          if (corpora === 'drive' && driveId === 'drive-1' && isFolderQuery) {
+            return HttpResponse.json({ files: mockSharedDriveFolders })
+          }
+          if (corpora === 'drive' && driveId === 'drive-1' && isImageQuery) {
+            return HttpResponse.json({ files: [] })
+          }
+
+          // Return root folders
+          if (q.includes("'root' in parents") && isFolderQuery) {
+            return HttpResponse.json({ files: mockRootFolders })
+          }
+          // Return shared folders
+          if (q.includes('sharedWithMe = true') && isFolderQuery) {
+            return HttpResponse.json({ files: mockSharedFolders })
+          }
+          return HttpResponse.json({ files: [] })
+        })
+      )
+    })
+
+    it('shows Shared Drives option at root level', async () => {
+      render(<FolderPicker onImageClick={vi.fn()} />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Shared drives')).toBeInTheDocument()
+      })
+    })
+
+    it('shows list of shared drives when clicking Shared Drives', async () => {
+      const user = userEvent.setup()
+      render(<FolderPicker onImageClick={vi.fn()} />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Shared drives')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Shared drives'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Team Drive')).toBeInTheDocument()
+      })
+      expect(screen.getByText('Company Assets')).toBeInTheDocument()
+    })
+
+    it('shows folders inside shared drive when clicking a drive', async () => {
+      const user = userEvent.setup()
+      render(<FolderPicker onImageClick={vi.fn()} />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Shared drives')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Shared drives'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Team Drive')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Team Drive'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Marketing')).toBeInTheDocument()
+      })
+      expect(screen.getByText('Engineering')).toBeInTheDocument()
+    })
+
+    it('shows My Drive link when in Shared Drives section', async () => {
+      const user = userEvent.setup()
+      render(<FolderPicker onImageClick={vi.fn()} />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Shared drives')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Shared drives'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Team Drive')).toBeInTheDocument()
+      })
+
+      expect(screen.getByRole('button', { name: 'My Drive' })).toBeInTheDocument()
+    })
+
+    it('can navigate back to My Drive from Shared Drives section', async () => {
+      const user = userEvent.setup()
+      render(<FolderPicker onImageClick={vi.fn()} />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Shared drives')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Shared drives'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Team Drive')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByRole('button', { name: 'My Drive' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
+      })
+      expect(screen.getByText('Shared drives')).toBeInTheDocument()
+    })
+
+    it('updates breadcrumbs correctly when navigating into shared drive', async () => {
+      const user = userEvent.setup()
+      render(<FolderPicker onImageClick={vi.fn()} />)
+
+      await waitFor(() => {
+        expect(screen.getByText('Shared drives')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Shared drives'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Team Drive')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Team Drive'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Marketing')).toBeInTheDocument()
+      })
+
+      // Breadcrumbs should show: My Drive > Shared drives > Team Drive
+      expect(screen.getByRole('button', { name: 'My Drive' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Shared drives' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Team Drive' })).toBeInTheDocument()
+    })
   })
 
   describe('images in folder', () => {

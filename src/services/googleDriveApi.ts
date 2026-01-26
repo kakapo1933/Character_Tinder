@@ -1,6 +1,12 @@
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
+const DRIVES_API = 'https://www.googleapis.com/drive/v3/drives'
 
 export interface DriveFolder {
+  id: string
+  name: string
+}
+
+export interface SharedDrive {
   id: string
   name: string
 }
@@ -40,6 +46,87 @@ export async function listFolders(accessToken: string, parentId?: string): Promi
 
     if (!response.ok) {
       throw new Error(`Failed to list folders: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const folders = data.files.map((f: { id: string; name: string }) => ({
+      id: f.id,
+      name: f.name,
+    }))
+
+    allFolders.push(...folders)
+    pageToken = data.nextPageToken
+  } while (pageToken)
+
+  return allFolders
+}
+
+export async function listSharedDrives(accessToken: string): Promise<SharedDrive[]> {
+  const allDrives: SharedDrive[] = []
+  let pageToken: string | undefined
+
+  do {
+    const params = new URLSearchParams({
+      pageSize: '100',
+    })
+
+    if (pageToken) {
+      params.set('pageToken', pageToken)
+    }
+
+    const response = await fetch(`${DRIVES_API}?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to list shared drives: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const drives = (data.drives || []).map((d: { id: string; name: string }) => ({
+      id: d.id,
+      name: d.name,
+    }))
+
+    allDrives.push(...drives)
+    pageToken = data.nextPageToken
+  } while (pageToken)
+
+  return allDrives
+}
+
+export async function listSharedDriveFolders(
+  accessToken: string,
+  driveId: string,
+  parentId?: string
+): Promise<DriveFolder[]> {
+  const parentFolder = parentId ?? driveId
+  const query = `mimeType='application/vnd.google-apps.folder' and '${parentFolder}' in parents and trashed=false`
+
+  const allFolders: DriveFolder[] = []
+  let pageToken: string | undefined
+
+  do {
+    const params = new URLSearchParams({
+      q: query,
+      fields: 'files(id,name),nextPageToken',
+      pageSize: '100',
+      corpora: 'drive',
+      driveId: driveId,
+      supportsAllDrives: 'true',
+      includeItemsFromAllDrives: 'true',
+    })
+
+    if (pageToken) {
+      params.set('pageToken', pageToken)
+    }
+
+    const response = await fetch(`${DRIVE_API}?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to list shared drive folders: ${response.status}`)
     }
 
     const data = await response.json()

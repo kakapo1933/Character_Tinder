@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '../stores/authStore'
-import { listFolders, listSharedFolders, listAllImages, type DriveFolder, type DriveImage } from '../services/googleDriveApi'
+import { listFolders, listSharedFolders, listSharedDrives, listSharedDriveFolders, listAllImages, type DriveFolder, type DriveImage, type SharedDrive } from '../services/googleDriveApi'
 import { buildDriveImageUrl } from '../utils/imageUrl'
 
 interface FolderPickerProps {
@@ -11,18 +11,24 @@ interface BreadcrumbItem {
   id: string | null
   name: string
   isShared?: boolean
+  isSharedDrives?: boolean
+  driveId?: string
 }
 
 const SHARED_WITH_ME_ID = '__shared__'
+const SHARED_DRIVES_ID = '__shared_drives__'
 
 export function FolderPicker({ onImageClick }: FolderPickerProps) {
   const accessToken = useAuthStore((s) => s.accessToken)
   const [folders, setFolders] = useState<DriveFolder[]>([])
+  const [sharedDrives, setSharedDrives] = useState<SharedDrive[]>([])
   const [images, setImages] = useState<DriveImage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [isInSharedSection, setIsInSharedSection] = useState(false)
+  const [isInSharedDrivesSection, setIsInSharedDrivesSection] = useState(false)
+  const [currentDriveId, setCurrentDriveId] = useState<string | null>(null)
   const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([
     { id: null, name: 'My Drive' },
   ])
@@ -35,10 +41,32 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
 
     const fetchData = async () => {
       try {
-        if (isInSharedSection && currentFolderId === SHARED_WITH_ME_ID) {
+        if (isInSharedDrivesSection && currentFolderId === SHARED_DRIVES_ID) {
+          // Show list of shared drives
+          const drives = await listSharedDrives(accessToken)
+          setSharedDrives(drives)
+          setFolders([])
+          setImages([])
+        } else if (isInSharedDrivesSection && currentDriveId && currentFolderId) {
+          // Navigating inside a shared drive folder - fetch both folders and images
+          const [subFolders, folderImages] = await Promise.all([
+            listSharedDriveFolders(accessToken, currentDriveId, currentFolderId),
+            listAllImages(accessToken, currentFolderId),
+          ])
+          setSharedDrives([])
+          setFolders(subFolders)
+          setImages(folderImages)
+        } else if (isInSharedDrivesSection && currentDriveId) {
+          // At root of a shared drive - show folders in the drive root
+          const driveFolders = await listSharedDriveFolders(accessToken, currentDriveId)
+          setSharedDrives([])
+          setFolders(driveFolders)
+          setImages([])
+        } else if (isInSharedSection && currentFolderId === SHARED_WITH_ME_ID) {
           // Show shared folders
           const sharedFolders = await listSharedFolders(accessToken)
           setFolders(sharedFolders)
+          setSharedDrives([])
           setImages([])
         } else if (isInSharedSection && currentFolderId) {
           // Navigating inside a shared folder - fetch both folders and images
@@ -47,6 +75,7 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
             listAllImages(accessToken, currentFolderId),
           ])
           setFolders(subFolders)
+          setSharedDrives([])
           setImages(folderImages)
         } else if (currentFolderId) {
           // Inside a My Drive folder - fetch both folders and images
@@ -55,11 +84,13 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
             listAllImages(accessToken, currentFolderId),
           ])
           setFolders(subFolders)
+          setSharedDrives([])
           setImages(folderImages)
         } else {
           // Show My Drive root folders
           const myFolders = await listFolders(accessToken, undefined)
           setFolders(myFolders)
+          setSharedDrives([])
           setImages([])
         }
       } catch {
@@ -70,7 +101,7 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
     }
 
     fetchData()
-  }, [accessToken, currentFolderId, isInSharedSection])
+  }, [accessToken, currentFolderId, isInSharedSection, isInSharedDrivesSection, currentDriveId])
 
   const navigateToFolder = (folder: DriveFolder) => {
     setCurrentFolderId(folder.id)
@@ -79,8 +110,32 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
 
   const navigateToShared = () => {
     setIsInSharedSection(true)
+    setIsInSharedDrivesSection(false)
+    setCurrentDriveId(null)
     setCurrentFolderId(SHARED_WITH_ME_ID)
     setBreadcrumbs([{ id: SHARED_WITH_ME_ID, name: 'Shared with me', isShared: true }])
+  }
+
+  const navigateToSharedDrives = () => {
+    setIsInSharedDrivesSection(true)
+    setIsInSharedSection(false)
+    setCurrentDriveId(null)
+    setCurrentFolderId(SHARED_DRIVES_ID)
+    setBreadcrumbs([{ id: SHARED_DRIVES_ID, name: 'Shared drives', isSharedDrives: true }])
+  }
+
+  const navigateToSharedDrive = (drive: SharedDrive) => {
+    setCurrentDriveId(drive.id)
+    setCurrentFolderId(null)
+    setBreadcrumbs([
+      ...breadcrumbs,
+      { id: drive.id, name: drive.name, driveId: drive.id },
+    ])
+  }
+
+  const navigateToSharedDriveFolder = (folder: DriveFolder) => {
+    setCurrentFolderId(folder.id)
+    setBreadcrumbs([...breadcrumbs, { id: folder.id, name: folder.name, driveId: currentDriveId! }])
   }
 
   const navigateToBreadcrumb = (index: number) => {
@@ -89,11 +144,28 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
     if (item.id === null) {
       // Going back to My Drive root
       setIsInSharedSection(false)
+      setIsInSharedDrivesSection(false)
+      setCurrentDriveId(null)
       setCurrentFolderId(null)
       setBreadcrumbs([{ id: null, name: 'My Drive' }])
     } else if (item.id === SHARED_WITH_ME_ID) {
       // Going back to Shared with me root
       setCurrentFolderId(SHARED_WITH_ME_ID)
+      setBreadcrumbs(breadcrumbs.slice(0, index + 1))
+    } else if (item.id === SHARED_DRIVES_ID) {
+      // Going back to Shared drives list
+      setCurrentDriveId(null)
+      setCurrentFolderId(SHARED_DRIVES_ID)
+      setBreadcrumbs(breadcrumbs.slice(0, index + 1))
+    } else if (item.driveId && item.id === item.driveId) {
+      // Going back to a shared drive root
+      setCurrentDriveId(item.driveId)
+      setCurrentFolderId(null)
+      setBreadcrumbs(breadcrumbs.slice(0, index + 1))
+    } else if (item.driveId) {
+      // Going to a folder inside a shared drive
+      setCurrentDriveId(item.driveId)
+      setCurrentFolderId(item.id)
       setBreadcrumbs(breadcrumbs.slice(0, index + 1))
     } else {
       setCurrentFolderId(item.id)
@@ -103,7 +175,7 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
 
   const getCurrentFolder = (): DriveFolder | null => {
     const current = breadcrumbs[breadcrumbs.length - 1]
-    if (current.id && current.id !== SHARED_WITH_ME_ID) {
+    if (current.id && current.id !== SHARED_WITH_ME_ID && current.id !== SHARED_DRIVES_ID) {
       return { id: current.id, name: current.name }
     }
     return null
@@ -116,7 +188,16 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
     }
   }
 
-  const isAtRoot = currentFolderId === null && !isInSharedSection
+  const handleFolderClick = (folder: DriveFolder) => {
+    if (isInSharedDrivesSection && currentDriveId) {
+      navigateToSharedDriveFolder(folder)
+    } else {
+      navigateToFolder(folder)
+    }
+  }
+
+  const isAtRoot = currentFolderId === null && !isInSharedSection && !isInSharedDrivesSection
+  const isShowingSharedDrivesList = isInSharedDrivesSection && currentFolderId === SHARED_DRIVES_ID
 
   return (
     <div className="flex flex-col h-full">
@@ -127,11 +208,13 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
           <button
             onClick={() => {
               setIsInSharedSection(false)
+              setIsInSharedDrivesSection(false)
+              setCurrentDriveId(null)
               setCurrentFolderId(null)
               setBreadcrumbs([{ id: null, name: 'My Drive' }])
             }}
             className={`hover:text-blue-600 ${
-              !isInSharedSection && breadcrumbs.length === 1
+              !isInSharedSection && !isInSharedDrivesSection && breadcrumbs.length === 1
                 ? 'text-gray-900 font-medium'
                 : 'text-gray-500'
             }`}
@@ -140,12 +223,12 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
           </button>
         </span>
         {breadcrumbs.map((item, index) => {
-          // Skip My Drive in breadcrumbs when not in shared section (already shown above)
-          if (item.id === null && !isInSharedSection) return null
+          // Skip My Drive in breadcrumbs when not in shared/shared drives section (already shown above)
+          if (item.id === null && !isInSharedSection && !isInSharedDrivesSection) return null
           return (
             <span key={item.id ?? 'root'} className="flex items-center">
               {/* Show separator before each item (except when it's the first My Drive) */}
-              {(index > 0 || isInSharedSection) && (
+              {(index > 0 || isInSharedSection || isInSharedDrivesSection) && (
                 <span className="mx-1 text-gray-400">/</span>
               )}
               <button
@@ -211,11 +294,84 @@ export function FolderPicker({ onImageClick }: FolderPickerProps) {
                 </button>
               )}
 
+              {/* Shared drives option at root */}
+              {isAtRoot && (
+                <button
+                  onClick={navigateToSharedDrives}
+                  className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3"
+                >
+                  <svg
+                    className="w-5 h-5 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                    />
+                  </svg>
+                  <span className="text-gray-900 flex-1">Shared drives</span>
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              )}
+
+              {/* Shared drives list */}
+              {isShowingSharedDrivesList && sharedDrives.map((drive) => (
+                <button
+                  key={drive.id}
+                  onClick={() => navigateToSharedDrive(drive)}
+                  className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3"
+                >
+                  <svg
+                    className="w-5 h-5 text-green-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                    />
+                  </svg>
+                  <span className="text-gray-900 flex-1">{drive.name}</span>
+                  <svg
+                    className="w-4 h-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              ))}
+
               {/* Regular folders */}
               {folders.map((folder) => (
                 <button
                   key={folder.id}
-                  onClick={() => navigateToFolder(folder)}
+                  onClick={() => handleFolderClick(folder)}
                   className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3"
                 >
                   <svg
