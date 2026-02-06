@@ -26,8 +26,20 @@ const mockPickerBuilder = {
   build: vi.fn().mockReturnValue(mockPicker),
 }
 
+// Use a class so it works with `new` keyword
+class MockPickerBuilder {
+  addView = mockPickerBuilder.addView
+  setOAuthToken = mockPickerBuilder.setOAuthToken
+  setDeveloperKey = mockPickerBuilder.setDeveloperKey
+  setAppId = mockPickerBuilder.setAppId
+  setCallback = mockPickerBuilder.setCallback
+  enableFeature = mockPickerBuilder.enableFeature
+  setSize = mockPickerBuilder.setSize
+  build = mockPickerBuilder.build
+}
+
 export const mockGooglePicker = {
-  PickerBuilder: vi.fn().mockReturnValue(mockPickerBuilder),
+  PickerBuilder: MockPickerBuilder,
   ViewId: {
     DOCS: 'DOCS',
     FOLDERS: 'FOLDERS',
@@ -93,7 +105,6 @@ export function setupGooglePickerMock() {
 
 export function cleanupGooglePickerMock() {
   storedCallback = null
-  vi.restoreAllMocks()
 }
 
 export { mockPickerBuilder, mockPicker }
