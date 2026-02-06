@@ -4,6 +4,8 @@ interface KeyboardShortcutHandlers {
   onKeep: () => void
   onDiscard: () => void
   onUndo: () => void
+  onEscape?: () => void
+  onToggleChrome?: () => void
   disabled?: boolean
 }
 
@@ -11,6 +13,8 @@ export function useKeyboardShortcuts({
   onKeep,
   onDiscard,
   onUndo,
+  onEscape,
+  onToggleChrome,
   disabled = false,
 }: KeyboardShortcutHandlers) {
   useEffect(() => {
@@ -27,10 +31,16 @@ export function useKeyboardShortcuts({
         case 'z':
           onUndo()
           break
+        case 'Escape':
+          onEscape?.()
+          break
+        case ' ':
+          onToggleChrome?.()
+          break
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [onKeep, onDiscard, onUndo, disabled])
+  }, [onKeep, onDiscard, onUndo, onEscape, onToggleChrome, disabled])
 }

@@ -72,4 +72,52 @@ describe('useKeyboardShortcuts', () => {
 
     expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function))
   })
+
+  it('calls onEscape on Escape key', () => {
+    const onEscape = vi.fn()
+    renderHook(() => useKeyboardShortcuts({ ...handlers, onEscape }))
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(onEscape).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onToggleChrome on Space key', () => {
+    const onToggleChrome = vi.fn()
+    renderHook(() => useKeyboardShortcuts({ ...handlers, onToggleChrome }))
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }))
+    expect(onToggleChrome).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not throw when onEscape is not provided and Escape is pressed', () => {
+    renderHook(() => useKeyboardShortcuts(handlers))
+
+    expect(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    }).not.toThrow()
+  })
+
+  it('does not throw when onToggleChrome is not provided and Space is pressed', () => {
+    renderHook(() => useKeyboardShortcuts(handlers))
+
+    expect(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }))
+    }).not.toThrow()
+  })
+
+  it('does not call onEscape when disabled', () => {
+    const onEscape = vi.fn()
+    renderHook(() => useKeyboardShortcuts({ ...handlers, onEscape, disabled: true }))
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    expect(onEscape).not.toHaveBeenCalled()
+  })
+
+  it('does not call onToggleChrome when disabled', () => {
+    const onToggleChrome = vi.fn()
+    renderHook(() => useKeyboardShortcuts({ ...handlers, onToggleChrome, disabled: true }))
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' }))
+    expect(onToggleChrome).not.toHaveBeenCalled()
+  })
 })

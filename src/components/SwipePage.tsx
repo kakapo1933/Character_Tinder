@@ -1,14 +1,24 @@
 import { useEffect, useState, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from '../stores/authStore'
 import { usePhotoStore } from '../stores/photoStore'
 import { listAllImages, copyFile, deleteFile } from '../services/googleDriveApi'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
+import { useAutoHide } from '../hooks/useAutoHide'
 import { useImagePreloader } from '../hooks/useImagePreloader'
 import { SwipeCard } from './SwipeCard'
 import { ProgressBar } from './ProgressBar'
 import { UndoButton } from './UndoButton'
 import { DestinationFolderPicker } from './DestinationFolderPicker'
+import { CinemaToast } from './CinemaToast'
 import type { DriveFolder } from '../services/googleDriveApi'
+
+type ToastType = 'success' | 'error' | 'info' | 'loading'
+
+interface Toast {
+  message: string
+  type: ToastType
+}
 
 interface SwipePageProps {
   folder: DriveFolder
@@ -40,40 +50,35 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
   const setDestinationFolder = usePhotoStore((s) => s.setDestinationFolder)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [copyError, setCopyError] = useState<string | null>(null)
-  const [copySuccess, setCopySuccess] = useState<string | null>(null)
-  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [alreadyCopiedInfo, setAlreadyCopiedInfo] = useState<string | null>(null)
+  const [toast, setToast] = useState<Toast | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [operationType, setOperationType] = useState<'copy' | 'delete' | null>(null)
   const [showDestinationPicker, setShowDestinationPicker] = useState(false)
+
+  const { isVisible: chromeVisible, show: showChrome } = useAutoHide({ timeout: 3000 })
 
   // Keep with copy to destination folder
   const handleKeep = useCallback(async () => {
     if (!currentPhoto || !accessToken || isSaving) return
 
     setIsSaving(true)
-    setOperationType('copy')
     try {
       // Copy to destination folder if set
       if (destinationFolder) {
         // Check if already copied (duplicate prevention)
         if (copiedFileIds[currentPhoto.id]) {
-          setAlreadyCopiedInfo(`Already in ${destinationFolder.name}`)
-          setTimeout(() => setAlreadyCopiedInfo(null), 2000)
+          setToast({ message: `Already in ${destinationFolder.name}`, type: 'info' })
+          setTimeout(() => setToast(null), 2000)
         } else {
+          setToast({ message: 'Copying...', type: 'loading' })
           try {
             const result = await copyFile(accessToken, currentPhoto.id, destinationFolder.id)
             setCopiedFileId(currentPhoto.id, result.id)
-            setCopySuccess(`Copied to ${destinationFolder.name}`)
-            // Auto-clear after 2 seconds
-            setTimeout(() => setCopySuccess(null), 2000)
+            setToast({ message: `Copied to ${destinationFolder.name}`, type: 'success' })
+            setTimeout(() => setToast(null), 2000)
           } catch (err) {
             console.error('Failed to copy file:', err)
-            setCopyError('Could not copy photo to destination folder')
-            // Auto-clear after 3 seconds
-            setTimeout(() => setCopyError(null), 3000)
+            setToast({ message: 'Could not copy photo to destination folder', type: 'error' })
+            setTimeout(() => setToast(null), 3000)
           }
         }
       }
@@ -81,7 +86,6 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
       keep()
     } finally {
       setIsSaving(false)
-      setOperationType(null)
     }
   }, [accessToken, currentPhoto, destinationFolder, keep, setCopiedFileId, isSaving, copiedFileIds])
 
@@ -93,22 +97,19 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
     const willDelete = copiedId && destinationFolder
 
     setIsSaving(true)
-    if (willDelete) {
-      setOperationType('delete')
-    }
     try {
       // If this photo was previously copied, delete it from target folder
       if (willDelete) {
+        setToast({ message: 'Deleting...', type: 'loading' })
         try {
           await deleteFile(accessToken, copiedId)
           removeCopiedFileId(currentPhoto.id)
-          setDeleteSuccess(`Removed from ${destinationFolder.name}`)
-          setTimeout(() => setDeleteSuccess(null), 2000)
+          setToast({ message: `Removed from ${destinationFolder.name}`, type: 'info' })
+          setTimeout(() => setToast(null), 2000)
         } catch (err) {
           console.error('Failed to delete copied file:', err)
-          setDeleteError('Could not remove photo from destination folder')
-          // Auto-clear after 3 seconds
-          setTimeout(() => setDeleteError(null), 3000)
+          setToast({ message: 'Could not remove photo from destination folder', type: 'error' })
+          setTimeout(() => setToast(null), 3000)
           // Continue with discard even if delete fails
         }
       }
@@ -116,7 +117,6 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
       discard()
     } finally {
       setIsSaving(false)
-      setOperationType(null)
     }
   }, [accessToken, currentPhoto, copiedFileIds, discard, removeCopiedFileId, destinationFolder, isSaving])
 
@@ -124,6 +124,8 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
     onKeep: handleKeep,
     onDiscard: handleDiscard,
     onUndo: undo,
+    onEscape: onBack,
+    onToggleChrome: showChrome,
     disabled: isComplete || loading || isSaving,
   })
 
@@ -156,10 +158,10 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-dvh flex items-center justify-center bg-zinc-950">
         <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
-          <p className="mt-4 text-gray-600">Loading photos...</p>
+          <div className="animate-spin w-8 h-8 border-4 border-sky-500 border-t-transparent rounded-full mx-auto" />
+          <p className="mt-4 text-zinc-400">Loading photos...</p>
         </div>
       </div>
     )
@@ -167,12 +169,12 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-dvh flex items-center justify-center bg-zinc-950">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-rose-400 mb-4">{error}</p>
           <button
             onClick={onBack}
-            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+            className="px-4 py-2 bg-zinc-800 text-zinc-200 rounded-lg hover:bg-zinc-700"
           >
             Go back
           </button>
@@ -183,12 +185,12 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
 
   if (photos.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="h-dvh flex items-center justify-center bg-zinc-950">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">No photos found in this folder</p>
+          <p className="text-zinc-400 mb-4">No photos found in this folder</p>
           <button
             onClick={onBack}
-            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+            className="px-4 py-2 bg-zinc-800 text-zinc-200 rounded-lg hover:bg-zinc-700"
           >
             Choose another folder
           </button>
@@ -198,20 +200,28 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-white shadow-sm p-4 flex items-center justify-between">
+    <div className="h-dvh bg-zinc-950 flex flex-col relative overflow-hidden"
+         onMouseMove={showChrome}
+         onTouchStart={showChrome}
+    >
+      {/* Top vignette */}
+      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/50 to-transparent pointer-events-none z-10" />
+
+      {/* Header - frosted glass, auto-hide */}
+      <header className={`absolute inset-x-0 top-0 z-20 bg-black/60 backdrop-blur-md border-b border-white/10 p-4 flex items-center justify-between transition-opacity duration-300 ${
+        chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      }`}>
         <button
           onClick={onBack}
-          className="text-gray-600 hover:text-gray-900"
+          className="text-zinc-300 hover:text-white"
         >
           ← Back
         </button>
-        <h1 className="font-medium text-gray-900">{folder.name}</h1>
+        <h1 className="font-medium text-zinc-100">{folder.name}</h1>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowDestinationPicker(true)}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            className="flex items-center gap-1 text-sm text-zinc-400 hover:text-zinc-200"
             title="Change destination folder"
             aria-label="Change destination folder"
           >
@@ -224,75 +234,45 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
               <span>Set dest</span>
             )}
           </button>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-zinc-500">
             {currentIndex + 1} / {photos.length}
           </span>
         </div>
       </header>
 
-      {/* Copy success toast */}
-      {copySuccess && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-green-100 border border-green-400 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50">
-          {copySuccess}
-        </div>
-      )}
+      {/* CinemaToast notification */}
+      <CinemaToast toast={toast} />
 
-      {/* Copy error toast */}
-      {copyError && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded-lg shadow-lg z-50">
-          {copyError}
-        </div>
-      )}
-
-      {/* Delete success toast */}
-      {deleteSuccess && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-blue-100 border border-blue-400 text-blue-800 px-4 py-2 rounded-lg shadow-lg z-50">
-          {deleteSuccess}
-        </div>
-      )}
-
-      {/* Delete error toast */}
-      {deleteError && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded-lg shadow-lg z-50">
-          {deleteError}
-        </div>
-      )}
-
-      {/* Already copied info toast */}
-      {alreadyCopiedInfo && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-gray-100 border border-gray-400 text-gray-800 px-4 py-2 rounded-lg shadow-lg z-50">
-          {alreadyCopiedInfo}
-        </div>
-      )}
-
-      {/* Operation indicator */}
-      {isSaving && operationType === 'copy' && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
-          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-          Copying...
-        </div>
-      )}
-      {isSaving && operationType === 'delete' && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2">
-          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-          Deleting...
-        </div>
-      )}
-
-      {/* Main swipe area */}
-      <main className="flex-1 flex items-center justify-center p-2 relative overflow-hidden min-h-0">
-        {currentPhoto && (
-          <SwipeCard
-            photo={currentPhoto}
-            onSwipeLeft={handleDiscard}
-            onSwipeRight={handleKeep}
-            disabled={isSaving}
-          />
-        )}
+      {/* Main swipe area - full viewport */}
+      <main className="flex-1 flex items-center justify-center relative overflow-hidden min-h-0">
+        <AnimatePresence mode="wait">
+          {currentPhoto && (
+            <motion.div
+              key={currentPhoto.id}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="w-full h-full"
+            >
+              <SwipeCard
+                photo={currentPhoto}
+                onSwipeLeft={handleDiscard}
+                onSwipeRight={handleKeep}
+                disabled={isSaving}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
-      {/* Footer with controls */}
-      <footer className="bg-white shadow-sm p-4">
+      {/* Bottom vignette */}
+      <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/50 to-transparent pointer-events-none z-10" />
+
+      {/* Footer with controls - frosted glass, auto-hide */}
+      <footer className={`absolute inset-x-0 bottom-0 z-20 bg-black/60 backdrop-blur-md border-t border-white/10 p-4 transition-opacity duration-300 ${
+        chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      }`}>
         <div className="max-w-md mx-auto mb-4">
           <ProgressBar
             current={currentIndex}
@@ -305,14 +285,14 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
           <div className="flex items-center gap-2">
             <span
               data-testid="discarded-badge"
-              className="bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center"
+              className="bg-rose-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center"
             >
               {discardIds.length}
             </span>
             <button
               onClick={handleDiscard}
               disabled={isSaving}
-              className={`w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-200'}`}
+              className={`w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-500/30'}`}
               title="Discard (←)"
             >
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -328,7 +308,7 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
             <button
               onClick={handleKeep}
               disabled={isSaving}
-              className={`w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-green-200'}`}
+              className={`w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-emerald-500/30'}`}
               title="Keep (→)"
             >
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,22 +317,22 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
             </button>
             <span
               data-testid="kept-badge"
-              className="bg-green-600 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center"
+              className="bg-emerald-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-[24px] text-center"
             >
               {keepIds.length}
             </span>
           </div>
         </div>
 
-        <div className="mt-2 text-center text-xs text-gray-400">
-          ← → or swipe
+        <div className="mt-2 text-center text-xs text-zinc-500">
+          ← → or swipe · Space toggle · Esc back
         </div>
       </footer>
 
       {/* Destination picker modal */}
       {showDestinationPicker && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+          <div className="bg-zinc-900 rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden border border-zinc-700">
             <DestinationFolderPicker
               onSelect={(folder) => {
                 setDestinationFolder(folder)

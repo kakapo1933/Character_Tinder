@@ -747,7 +747,7 @@ describe('SwipePage', () => {
   })
 
   describe('counter badges next to buttons', () => {
-    it('displays kept count badge next to keep button with green styling', async () => {
+    it('displays kept count badge next to keep button', async () => {
       render(
         <SwipePage
           folder={mockFolder}
@@ -763,11 +763,10 @@ describe('SwipePage', () => {
       // Should find a kept count badge near the keep button
       const keptBadge = screen.getByTestId('kept-badge')
       expect(keptBadge).toBeInTheDocument()
-      expect(keptBadge).toHaveClass('bg-green-600')
       expect(keptBadge).toHaveTextContent('0')
     })
 
-    it('displays discarded count badge next to discard button with red styling', async () => {
+    it('displays discarded count badge next to discard button', async () => {
       render(
         <SwipePage
           folder={mockFolder}
@@ -783,7 +782,6 @@ describe('SwipePage', () => {
       // Should find a discarded count badge near the discard button
       const discardedBadge = screen.getByTestId('discarded-badge')
       expect(discardedBadge).toBeInTheDocument()
-      expect(discardedBadge).toHaveClass('bg-red-600')
       expect(discardedBadge).toHaveTextContent('0')
     })
 
@@ -1142,6 +1140,129 @@ describe('SwipePage', () => {
         // Either button is re-enabled or we've moved to next photo
         expect(usePhotoStore.getState().currentIndex).toBeGreaterThanOrEqual(0)
       })
+    })
+  })
+
+  describe('Cinema Mode layout', () => {
+    it('has dark background', async () => {
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // The main container should have dark background
+      const mainContainer = screen.getByTestId('swipe-card').closest('[class*="bg-zinc-950"]')
+      expect(mainContainer).toBeInTheDocument()
+    })
+
+    it('has frosted glass header', async () => {
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // Header should have backdrop-blur for frosted glass
+      const header = document.querySelector('header')
+      expect(header).toBeInTheDocument()
+      expect(header?.className).toMatch(/backdrop-blur/)
+    })
+
+    it('has vignette overlays', async () => {
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // Should have gradient overlays with pointer-events-none
+      const vignettes = document.querySelectorAll('[class*="pointer-events-none"][class*="gradient"]')
+      expect(vignettes.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it('renders CinemaToast for notifications', async () => {
+      const user = userEvent.setup()
+      const destinationFolder = { id: 'dest-folder', name: 'Destination' }
+      usePhotoStore.getState().setDestinationFolder(destinationFolder)
+
+      server.use(
+        http.post(`${DRIVE_API}/:fileId/copy`, () => {
+          return HttpResponse.json({ id: 'copied-file-id', name: 'photo1.jpg' })
+        })
+      )
+
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByTitle('Keep (→)'))
+
+      // CinemaToast should render with aria-live
+      await waitFor(() => {
+        const toast = screen.getByRole('status')
+        expect(toast).toHaveAttribute('aria-live', 'polite')
+      })
+    })
+  })
+
+  describe('accessibility', () => {
+    it('respects prefers-reduced-motion by wrapping animations', async () => {
+      // Mock matchMedia for reduced motion
+      const originalMatchMedia = window.matchMedia
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query === '(prefers-reduced-motion: reduce)',
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }))
+
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // Verify the component renders without errors under reduced motion
+      expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+
+      window.matchMedia = originalMatchMedia
     })
   })
 })

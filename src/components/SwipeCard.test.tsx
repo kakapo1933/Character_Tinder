@@ -106,33 +106,7 @@ describe('SwipeCard', () => {
     expect(container.firstChild).toHaveClass('cursor-grab')
   })
 
-  it('has larger card size for better viewing', () => {
-    const { container } = render(
-      <SwipeCard
-        photo={mockPhoto}
-        onSwipeLeft={vi.fn()}
-        onSwipeRight={vi.fn()}
-      />
-    )
-
-    expect(container.firstChild).toHaveClass('max-w-2xl')
-    expect(container.firstChild).not.toHaveClass('max-w-md')
-  })
-
-  it('has tinted background for image contrast', () => {
-    const { container } = render(
-      <SwipeCard
-        photo={mockPhoto}
-        onSwipeLeft={vi.fn()}
-        onSwipeRight={vi.fn()}
-      />
-    )
-
-    expect(container.firstChild).toHaveClass('bg-gray-900')
-    expect(container.firstChild).not.toHaveClass('bg-white')
-  })
-
-  it('has max-height constraint to prevent overflow', () => {
+  it('does not force aspect ratio that causes overflow', () => {
     const { container } = render(
       <SwipeCard
         photo={mockPhoto}

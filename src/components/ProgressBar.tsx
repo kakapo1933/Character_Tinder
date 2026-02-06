@@ -7,13 +7,10 @@ export function ProgressBar({ current, total }: ProgressBarProps) {
   const progress = total > 0 ? (current / total) * 100 : 0
 
   return (
-    <div className="w-full">
-      <div className="text-sm text-gray-500 mb-1 text-center">
-        {current} / {total}
-      </div>
-      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+    <div className="w-full" role="progressbar" aria-valuenow={current} aria-valuemin={0} aria-valuemax={total}>
+      <div className="h-1 bg-zinc-800 rounded-full overflow-hidden">
         <div
-          className="h-full bg-blue-500 transition-all duration-300"
+          className="h-full bg-sky-500 transition-all duration-300"
           style={{ width: `${progress}%` }}
         />
       </div>

@@ -3,9 +3,11 @@ import { describe, it, expect } from 'vitest'
 import { ProgressBar } from './ProgressBar'
 
 describe('ProgressBar', () => {
-  it('displays current and total count', () => {
+  it('exposes current and total via aria attributes', () => {
     render(<ProgressBar current={3} total={10} />)
-    expect(screen.getByText('3 / 10')).toBeInTheDocument()
+    const bar = screen.getByRole('progressbar')
+    expect(bar).toHaveAttribute('aria-valuenow', '3')
+    expect(bar).toHaveAttribute('aria-valuemax', '10')
   })
 
   it('renders progress bar with correct width', () => {

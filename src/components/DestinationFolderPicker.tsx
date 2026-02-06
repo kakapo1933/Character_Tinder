@@ -125,18 +125,18 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="p-4 border-b flex items-center justify-between">
-        <h2 className="font-medium text-gray-900">Select destination folder</h2>
+      <div className="p-4 border-b border-zinc-700 flex items-center justify-between">
+        <h2 className="font-medium text-zinc-100">Select destination folder</h2>
         <button
           onClick={onCancel}
-          className="text-gray-500 hover:text-gray-700"
+          className="text-zinc-400 hover:text-zinc-200"
         >
           Cancel
         </button>
       </div>
 
       {/* Breadcrumbs */}
-      <div className="flex items-center gap-1 px-4 py-2 bg-gray-50 border-b text-sm overflow-x-auto">
+      <div className="flex items-center gap-1 px-4 py-2 bg-zinc-900 border-b border-zinc-700 text-sm overflow-x-auto">
         <span className="flex items-center">
           <button
             onClick={() => {
@@ -144,10 +144,10 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
               setCurrentFolderId(null)
               setBreadcrumbs([{ id: null, name: 'My Drive' }])
             }}
-            className={`hover:text-blue-600 ${
+            className={`hover:text-sky-400 ${
               !isInSharedSection && breadcrumbs.length === 1
-                ? 'text-gray-900 font-medium'
-                : 'text-gray-500'
+                ? 'text-zinc-100 font-medium'
+                : 'text-zinc-400'
             }`}
           >
             My Drive
@@ -158,14 +158,14 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
           return (
             <span key={item.id ?? 'root'} className="flex items-center">
               {(index > 0 || isInSharedSection) && (
-                <span className="mx-1 text-gray-400">/</span>
+                <span className="mx-1 text-zinc-600">/</span>
               )}
               <button
                 onClick={() => navigateToBreadcrumb(index)}
-                className={`hover:text-blue-600 ${
+                className={`hover:text-sky-400 ${
                   index === breadcrumbs.length - 1
-                    ? 'text-gray-900 font-medium'
-                    : 'text-gray-500'
+                    ? 'text-zinc-100 font-medium'
+                    : 'text-zinc-400'
                 }`}
               >
                 {item.name}
@@ -179,21 +179,21 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center p-8">
-            <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
-            <span className="ml-2 text-gray-600">Loading folders...</span>
+            <div className="animate-spin w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full" />
+            <span className="ml-2 text-zinc-400">Loading folders...</span>
           </div>
         ) : error ? (
-          <div className="p-4 text-center text-red-600">{error}</div>
+          <div className="p-4 text-center text-rose-400">{error}</div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="divide-y divide-zinc-800">
             {/* Shared with me option at root */}
             {isAtRoot && (
               <button
                 onClick={navigateToShared}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3"
+                className="w-full px-4 py-3 text-left hover:bg-zinc-800 transition-colors flex items-center gap-3"
               >
                 <svg
-                  className="w-5 h-5 text-blue-500"
+                  className="w-5 h-5 text-sky-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -205,9 +205,9 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
                     d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
                   />
                 </svg>
-                <span className="text-gray-900 flex-1">Shared with me</span>
+                <span className="text-zinc-100 flex-1">Shared with me</span>
                 <svg
-                  className="w-4 h-4 text-gray-400"
+                  className="w-4 h-4 text-zinc-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -227,18 +227,18 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
               <button
                 key={folder.id}
                 onClick={() => navigateToFolder(folder)}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3"
+                className="w-full px-4 py-3 text-left hover:bg-zinc-800 transition-colors flex items-center gap-3"
               >
                 <svg
-                  className="w-5 h-5 text-gray-400"
+                  className="w-5 h-5 text-zinc-500"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
                   <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
                 </svg>
-                <span className="text-gray-900 flex-1">{folder.name}</span>
+                <span className="text-zinc-100 flex-1">{folder.name}</span>
                 <svg
-                  className="w-4 h-4 text-gray-400"
+                  className="w-4 h-4 text-zinc-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -257,7 +257,7 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
       </div>
 
       {/* Actions */}
-      <div className="p-4 border-t bg-gray-50 space-y-3">
+      <div className="p-4 border-t border-zinc-700 bg-zinc-900 space-y-3">
         {/* Create new folder */}
         {isCreating ? (
           <div className="flex gap-2">
@@ -266,13 +266,13 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
               placeholder="Folder name"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
-              className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 border border-zinc-600 bg-zinc-800 text-zinc-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500"
               autoFocus
             />
             <button
               onClick={handleCreateFolder}
               disabled={createLoading || !newFolderName.trim()}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+              className="px-4 py-2 bg-sky-500 text-white rounded-lg hover:bg-sky-600 disabled:opacity-50"
             >
               {createLoading ? '...' : 'Create'}
             </button>
@@ -281,7 +281,7 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
                 setIsCreating(false)
                 setNewFolderName('')
               }}
-              className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+              className="px-4 py-2 border border-zinc-600 rounded-lg hover:bg-zinc-800 text-zinc-300"
             >
               Cancel
             </button>
@@ -289,7 +289,7 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
         ) : (
           <button
             onClick={() => setIsCreating(true)}
-            className="w-full px-4 py-2 border border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
+            className="w-full px-4 py-2 border border-dashed border-zinc-600 rounded-lg text-zinc-400 hover:border-sky-400 hover:text-sky-400 transition-colors flex items-center justify-center gap-2"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -302,7 +302,7 @@ export function DestinationFolderPicker({ onSelect, onCancel }: DestinationFolde
         {canSelectCurrent && (
           <button
             onClick={handleSelectCurrentFolder}
-            className="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+            className="w-full px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
           >
             Select this folder
           </button>

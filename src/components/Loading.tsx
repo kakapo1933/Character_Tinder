@@ -13,9 +13,9 @@ export function Loading({ message = 'Loading...', size = 'md' }: LoadingProps) {
   return (
     <div className="flex flex-col items-center justify-center p-4">
       <div
-        className={`animate-spin border-blue-500 border-t-transparent rounded-full ${sizeClasses[size]}`}
+        className={`animate-spin border-sky-500 border-t-transparent rounded-full ${sizeClasses[size]}`}
       />
-      {message && <p className="mt-4 text-gray-600">{message}</p>}
+      {message && <p className="mt-4 text-zinc-400">{message}</p>}
     </div>
   )
 }

@@ -32,7 +32,7 @@ export function SwipeCard({ photo, onSwipeLeft, onSwipeRight, disabled = false }
   return (
     <motion.div
       data-testid="swipe-card"
-      className={`absolute w-full max-w-2xl h-full max-h-[70vh] bg-gray-900 rounded-2xl shadow-xl overflow-hidden ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
+      className={`absolute inset-0 bg-black overflow-hidden ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
       style={{ x, rotate, opacity }}
       drag={disabled ? false : 'x'}
       dragConstraints={{ left: 0, right: 0 }}
@@ -57,7 +57,7 @@ export function SwipeCard({ photo, onSwipeLeft, onSwipeRight, disabled = false }
 
       {/* Swipe indicators */}
       <motion.div
-        className="absolute top-4 left-4 px-4 py-2 bg-red-500 text-white font-bold rounded-lg border-4 border-red-600"
+        className="absolute top-4 left-4 px-4 py-2 bg-rose-500 text-white font-bold rounded-lg border-4 border-rose-600"
         style={{
           opacity: useTransform(x, [-100, 0], [1, 0]),
           rotate: -12,
@@ -66,7 +66,7 @@ export function SwipeCard({ photo, onSwipeLeft, onSwipeRight, disabled = false }
         NOPE
       </motion.div>
       <motion.div
-        className="absolute top-4 right-4 px-4 py-2 bg-green-500 text-white font-bold rounded-lg border-4 border-green-600"
+        className="absolute top-4 right-4 px-4 py-2 bg-emerald-500 text-white font-bold rounded-lg border-4 border-emerald-600"
         style={{
           opacity: useTransform(x, [0, 100], [0, 1]),
           rotate: 12,

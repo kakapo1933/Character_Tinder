@@ -25,10 +25,10 @@ export function GoogleSignInButton() {
           alt={user.name}
           className="w-8 h-8 rounded-full"
         />
-        <span className="text-sm font-medium">{user.name}</span>
+        <span className="text-sm font-medium text-zinc-200">{user.name}</span>
         <button
           onClick={logout}
-          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+          className="px-3 py-1.5 text-sm text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-md transition-colors"
         >
           Sign out
         </button>
@@ -39,7 +39,7 @@ export function GoogleSignInButton() {
   return (
     <button
       onClick={handleSignIn}
-      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors"
+      className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border border-zinc-600 rounded-lg shadow-sm hover:bg-zinc-700 text-zinc-100 transition-colors"
     >
       <svg className="w-5 h-5" viewBox="0 0 24 24">
         <path
