@@ -5,6 +5,7 @@ declare namespace google.picker {
     setMimeTypes(mimeTypes: string): this
     setIncludeFolders(included: boolean): this
     setSelectFolderEnabled(enabled: boolean): this
+    setEnableDrives(enabled: boolean): this
   }
 
   class PickerBuilder {
@@ -14,6 +15,7 @@ declare namespace google.picker {
     setAppId(appId: string): this
     setCallback(callback: (data: ResponseObject) => void): this
     enableFeature(feature: string): this
+    setSelectableMimeTypes(mimeTypes: string): this
     setSize(width: number, height: number): this
     build(): Picker
   }

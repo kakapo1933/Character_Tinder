@@ -163,18 +163,25 @@ describe('FolderPicker', () => {
     expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
   })
 
-  it('picker opens with shared folders tab available', async () => {
+  it('picker opens with shared folders and shared drives tabs', async () => {
     const user = userEvent.setup()
     render(<FolderPicker onImageClick={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: /select folder/i }))
 
-    expect(mockPickerBuilder.addView).toHaveBeenCalledTimes(2)
+    expect(mockPickerBuilder.addView).toHaveBeenCalledTimes(3)
     expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(1, 'FOLDERS')
     expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
         setOwnedByMe: expect.any(Function),
+        setMimeTypes: expect.any(Function),
+      })
+    )
+    expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({
+        setEnableDrives: expect.any(Function),
         setMimeTypes: expect.any(Function),
       })
     )

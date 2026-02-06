@@ -30,12 +30,14 @@ describe('useGooglePicker', () => {
     mockPickerBuilder.setAppId.mockClear()
     mockPickerBuilder.setCallback.mockClear()
     mockPickerBuilder.enableFeature.mockClear()
+    mockPickerBuilder.setSelectableMimeTypes.mockClear()
     mockPickerBuilder.build.mockClear()
     mockPicker.setVisible.mockClear()
     mockDocsViewInstance.setOwnedByMe.mockClear()
     mockDocsViewInstance.setMimeTypes.mockClear()
     mockDocsViewInstance.setIncludeFolders.mockClear()
     mockDocsViewInstance.setSelectFolderEnabled.mockClear()
+    mockDocsViewInstance.setEnableDrives.mockClear()
   })
 
   it('returns openPicker function', () => {
@@ -138,7 +140,6 @@ describe('useGooglePicker', () => {
       result.current.openPicker(() => {})
     })
 
-    expect(mockPickerBuilder.addView).toHaveBeenCalledTimes(2)
     expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(1, 'FOLDERS')
     expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
       2,
@@ -149,16 +150,14 @@ describe('useGooglePicker', () => {
     )
   })
 
-  it('configures shared DocsView to show only folders', async () => {
+  it('does not filter MIME types on shared views so images are visible', async () => {
     const { result } = renderHook(() => useGooglePicker())
 
     await act(async () => {
       result.current.openPicker(() => {})
     })
 
-    expect(mockDocsViewInstance.setMimeTypes).toHaveBeenCalledWith(
-      'application/vnd.google-apps.folder'
-    )
+    expect(mockDocsViewInstance.setMimeTypes).not.toHaveBeenCalled()
   })
 
   it('configures shared DocsView with setOwnedByMe(false)', async () => {
@@ -206,6 +205,49 @@ describe('useGooglePicker', () => {
     })
 
     expect(selectedFolder).toEqual({ id: 'shared-folder-1', name: 'Shared Photos' })
+  })
+
+  it('adds a third view for shared drives', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockPickerBuilder.addView).toHaveBeenCalledTimes(3)
+  })
+
+  it('configures shared drives view with setEnableDrives(true)', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockDocsViewInstance.setEnableDrives).toHaveBeenCalledWith(true)
+  })
+
+  it('configures shared drives view to include and select folders', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockDocsViewInstance.setIncludeFolders).toHaveBeenCalledWith(true)
+    expect(mockDocsViewInstance.setSelectFolderEnabled).toHaveBeenCalledWith(true)
+  })
+
+  it('restricts selectable items to folders only via setSelectableMimeTypes', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockPickerBuilder.setSelectableMimeTypes).toHaveBeenCalledWith(
+      'application/vnd.google-apps.folder'
+    )
   })
 
   it('does not open picker when not authenticated', async () => {

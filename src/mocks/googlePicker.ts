@@ -22,6 +22,7 @@ const mockPickerBuilder = {
     return mockPickerBuilder
   }),
   enableFeature: vi.fn().mockReturnThis(),
+  setSelectableMimeTypes: vi.fn().mockReturnThis(),
   setSize: vi.fn().mockReturnThis(),
   build: vi.fn().mockReturnValue(mockPicker),
 }
@@ -34,6 +35,7 @@ class MockPickerBuilder {
   setAppId = mockPickerBuilder.setAppId
   setCallback = mockPickerBuilder.setCallback
   enableFeature = mockPickerBuilder.enableFeature
+  setSelectableMimeTypes = mockPickerBuilder.setSelectableMimeTypes
   setSize = mockPickerBuilder.setSize
   build = mockPickerBuilder.build
 }
@@ -43,6 +45,7 @@ const mockDocsViewInstance = {
   setMimeTypes: vi.fn().mockReturnThis(),
   setIncludeFolders: vi.fn().mockReturnThis(),
   setSelectFolderEnabled: vi.fn().mockReturnThis(),
+  setEnableDrives: vi.fn().mockReturnThis(),
 }
 
 class MockDocsView {
@@ -50,6 +53,7 @@ class MockDocsView {
   setMimeTypes = mockDocsViewInstance.setMimeTypes
   setIncludeFolders = mockDocsViewInstance.setIncludeFolders
   setSelectFolderEnabled = mockDocsViewInstance.setSelectFolderEnabled
+  setEnableDrives = mockDocsViewInstance.setEnableDrives
 }
 
 export const mockGooglePicker = {

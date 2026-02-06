@@ -66,15 +66,21 @@ export function useGooglePicker() {
         .setOwnedByMe(false)
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
-        .setMimeTypes('application/vnd.google-apps.folder')
+
+      const sharedDrivesView = new window.google.picker.DocsView()
+        .setEnableDrives(true)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
 
       const picker = new window.google.picker.PickerBuilder()
         .addView(window.google.picker.ViewId.FOLDERS)
         .addView(sharedFoldersView)
+        .addView(sharedDrivesView)
         .setOAuthToken(accessToken)
         .setDeveloperKey(config.googleApiKey)
         .setAppId(config.googleAppId)
         .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
+        .setSelectableMimeTypes('application/vnd.google-apps.folder')
         .setCallback((data: google.picker.ResponseObject) => {
           if (data.action === window.google.picker.Action.PICKED && data.docs?.length) {
             const doc = data.docs[0]
