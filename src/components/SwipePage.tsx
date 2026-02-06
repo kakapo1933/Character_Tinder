@@ -12,7 +12,7 @@ import { ProgressBar } from './ProgressBar'
 import { UndoButton } from './UndoButton'
 import { DestinationFolderPicker } from './DestinationFolderPicker'
 import { CinemaToast } from './CinemaToast'
-import type { DriveFolder } from '../services/googleDriveApi'
+import type { DriveFolder, DriveImage } from '../services/googleDriveApi'
 
 type ToastType = 'success' | 'error' | 'info' | 'loading'
 
@@ -26,9 +26,10 @@ interface SwipePageProps {
   onComplete: () => void
   onBack: () => void
   startIndex?: number
+  initialPhotos?: DriveImage[]
 }
 
-export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageProps) {
+export function SwipePage({ folder, onComplete, onBack, startIndex, initialPhotos }: SwipePageProps) {
   const accessToken = useAuthStore((s) => s.accessToken)
   const {
     photos,
@@ -48,7 +49,7 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
   } = usePhotoStore()
 
   const setDestinationFolder = usePhotoStore((s) => s.setDestinationFolder)
-  const { loading, error } = usePhotoLoader({ folderId: folder.id, accessToken, startIndex })
+  const { loading, error } = usePhotoLoader({ folderId: folder.id, accessToken, startIndex, initialPhotos })
   const [toast, setToast] = useState<Toast | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showDestinationPicker, setShowDestinationPicker] = useState(false)

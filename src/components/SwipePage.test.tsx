@@ -1232,6 +1232,32 @@ describe('SwipePage', () => {
     })
   })
 
+  describe('initialPhotos prop', () => {
+    it('renders pre-loaded photos without API call when initialPhotos is provided', async () => {
+      const preloadedPhotos = [
+        { id: 'pre-1', name: 'preloaded1.jpg' },
+        { id: 'pre-2', name: 'preloaded2.jpg' },
+      ]
+
+      // Reset handlers so any Drive API call will trigger MSW's onUnhandledRequest error
+      server.resetHandlers()
+
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+          initialPhotos={preloadedPhotos}
+        />
+      )
+
+      // Should render immediately without loading state
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+    })
+  })
+
   describe('accessibility', () => {
     it('respects prefers-reduced-motion by wrapping animations', async () => {
       // Mock matchMedia for reduced motion
