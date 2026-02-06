@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { SwipeCard } from './SwipeCard'
+import { useAuthStore } from '../stores/authStore'
 
 const mockPhoto = {
   id: '1',
@@ -9,7 +10,14 @@ const mockPhoto = {
 }
 
 describe('SwipeCard', () => {
-  it('renders the image', () => {
+  beforeEach(() => {
+    useAuthStore.getState().login(
+      { id: '1', email: 'test@test.com', name: 'Test', picture: '' },
+      'mock-token'
+    )
+  })
+
+  it('renders the image', async () => {
     render(
       <SwipeCard
         photo={mockPhoto}
@@ -17,11 +25,11 @@ describe('SwipeCard', () => {
         onSwipeRight={vi.fn()}
       />
     )
-    const img = screen.getByRole('img')
+    const img = await screen.findByRole('img')
     expect(img).toBeInTheDocument()
   })
 
-  it('displays image with object-contain to show whole picture without cropping', () => {
+  it('displays image with object-contain to show whole picture without cropping', async () => {
     render(
       <SwipeCard
         photo={mockPhoto}
@@ -29,7 +37,7 @@ describe('SwipeCard', () => {
         onSwipeRight={vi.fn()}
       />
     )
-    const img = screen.getByRole('img')
+    const img = await screen.findByRole('img')
     expect(img).toHaveClass('object-contain')
     expect(img).not.toHaveClass('object-cover')
   })

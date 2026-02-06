@@ -128,7 +128,7 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
   })
 
   // Preload next images for smooth experience
-  useImagePreloader(photos, currentIndex)
+  useImagePreloader(photos, currentIndex, accessToken)
 
   useEffect(() => {
     if (!accessToken) return

@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useTransform } from 'framer-motion'
 import type { DriveImage } from '../services/googleDriveApi'
-import { buildDriveImageUrl } from '../utils/imageUrl'
+import { useAuthenticatedImage } from '../hooks/useAuthenticatedImage'
+import { useAuthStore } from '../stores/authStore'
 
 interface SwipeCardProps {
   photo: DriveImage
@@ -25,8 +26,8 @@ export function SwipeCard({ photo, onSwipeLeft, onSwipeRight, disabled = false }
     }
   }
 
-  // Build image URL - use high resolution Drive thumbnail
-  const imageUrl = buildDriveImageUrl(photo.id)
+  const accessToken = useAuthStore((s) => s.accessToken)
+  const imageUrl = useAuthenticatedImage(photo.id, accessToken)
 
   return (
     <motion.div
@@ -38,12 +39,18 @@ export function SwipeCard({ photo, onSwipeLeft, onSwipeRight, disabled = false }
       onDragEnd={handleDragEnd}
       whileTap={disabled ? undefined : { cursor: 'grabbing' }}
     >
-      <img
-        src={imageUrl}
-        alt={photo.name}
-        className="w-full h-full object-contain"
-        draggable={false}
-      />
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={photo.name}
+          className="w-full h-full object-contain"
+          draggable={false}
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        </div>
+      )}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
         <p className="text-white font-medium truncate">{photo.name}</p>
       </div>
