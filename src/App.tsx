@@ -3,7 +3,6 @@ import { useAuthStore } from './stores/authStore'
 import { usePhotoStore } from './stores/photoStore'
 import { GoogleSignInButton } from './components/GoogleSignInButton'
 import { OAuthCallback } from './components/OAuthCallback'
-import { FolderPicker } from './components/FolderPicker'
 import { SwipePage } from './components/SwipePage'
 import { CompletionState } from './components/CompletionState'
 import { useGooglePicker } from './hooks/useGooglePicker'
@@ -172,7 +171,6 @@ function App() {
               {createFolderError}
             </div>
           )}
-          <FolderPicker onFolderSelect={handleFolderSelect} />
         </main>
       </div>
     )
