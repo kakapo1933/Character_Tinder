@@ -19,9 +19,14 @@ src/
 ├── components/       # React components
 ├── stores/           # Zustand stores
 │   └── authStore.ts  # Authentication state
-├── mocks/            # MSW handlers for testing
+├── hooks/            # Custom React hooks
+│   └── useGooglePicker.ts  # Google Picker API wrapper
+├── mocks/            # MSW handlers + Google Picker mock
 │   ├── handlers.ts
-│   └── server.ts
+│   ├── server.ts
+│   └── googlePicker.ts     # Google Picker test mock
+├── types/            # TypeScript declarations
+│   └── google-picker.d.ts  # Google Picker API types
 ├── test/             # Test setup
 │   └── setup.ts
 └── App.tsx
@@ -54,5 +59,9 @@ This project follows **TDD (Test-Driven Development)**:
 ## Google Drive Integration
 
 - OAuth 2.0 for authentication
-- API scopes: `drive.readonly` for listing, `drive` for copying files
-- Workflow: Select folder → Load images → Swipe → Copy "keep" images to new folder
+- Google Picker API for native folder selection (source folders)
+- Custom `DestinationFolderPicker` for destination folders (supports "Create new folder")
+- API scopes: `drive` for full access (listing, copying, deleting)
+- Requires: `VITE_GOOGLE_API_KEY` and `VITE_GOOGLE_APP_ID` env vars for Picker API
+- Workflow: Google Picker → Load images → Swipe → Copy "keep" images to destination folder
+- `useGooglePicker` hook wraps Picker API with dynamic script loading
