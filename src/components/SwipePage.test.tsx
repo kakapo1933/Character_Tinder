@@ -838,6 +838,46 @@ describe('SwipePage', () => {
     })
   })
 
+  describe('startIndex prop', () => {
+    const fiveImages = [
+      { id: 'img-0', name: 'photo0.jpg', thumbnailLink: 'https://thumb0.jpg' },
+      { id: 'img-1', name: 'photo1.jpg', thumbnailLink: 'https://thumb1.jpg' },
+      { id: 'img-2', name: 'photo2.jpg', thumbnailLink: 'https://thumb2.jpg' },
+      { id: 'img-3', name: 'photo3.jpg', thumbnailLink: 'https://thumb3.jpg' },
+      { id: 'img-4', name: 'photo4.jpg', thumbnailLink: 'https://thumb4.jpg' },
+    ]
+
+    it('passes startIndex to setPhotos when provided', async () => {
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const q = url.searchParams.get('q') || ''
+          if (q.includes("'source-folder' in parents") && q.includes('mimeType contains')) {
+            return HttpResponse.json({ files: fiveImages })
+          }
+          return HttpResponse.json({ files: [] })
+        })
+      )
+
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+          startIndex={3}
+        />
+      )
+
+      // Wait for photos to load
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // currentIndex should be 3 (not 0) because startIndex was passed
+      expect(usePhotoStore.getState().currentIndex).toBe(3)
+    })
+  })
+
   describe('operation indicators', () => {
     it('shows "Copying..." indicator during copy operation', async () => {
       const user = userEvent.setup()

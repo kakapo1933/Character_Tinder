@@ -57,7 +57,7 @@ describe('FolderPicker', () => {
     await user.click(screen.getByRole('button', { name: /select folder/i }))
     simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
 
-    expect(onFolderSelect).toHaveBeenCalledWith({ id: 'folder-1', name: 'Photos 2024' })
+    expect(onFolderSelect).toHaveBeenCalledWith({ id: 'folder-1', name: 'Photos 2024', mimeType: 'application/vnd.google-apps.folder' })
   })
 
   it('picker opens with My Drive, shared folders, and shared drives tabs', async () => {

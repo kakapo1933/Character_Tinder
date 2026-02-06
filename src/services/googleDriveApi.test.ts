@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from '../mocks/server'
-import { listFolders, listSharedFolders, listSharedDrives, listSharedDriveFolders, listImages, listAllImages, copyFile, deleteFile, createFolder, getFolder, type DriveFolder, type DriveImage, type SharedDrive } from './googleDriveApi'
+import { listFolders, listSharedFolders, listSharedDrives, listSharedDriveFolders, listImages, listAllImages, copyFile, deleteFile, createFolder, getFolder, getFileParent, type DriveFolder, type DriveImage, type SharedDrive } from './googleDriveApi'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
 const DRIVES_API = 'https://www.googleapis.com/drive/v3/drives'
@@ -727,6 +727,32 @@ describe('googleDriveApi', () => {
 
       // Should not throw - file was already deleted
       await expect(deleteFile('mock-token', 'file-id')).resolves.toBeUndefined()
+    })
+  })
+
+  describe('getFileParent', () => {
+    it('returns parent folder for a valid file', async () => {
+      server.use(
+        http.get(`${DRIVE_API}/file123`, () =>
+          HttpResponse.json({ id: 'file123', parents: ['folder456'] })
+        ),
+        http.get(`${DRIVE_API}/folder456`, () =>
+          HttpResponse.json({ id: 'folder456', name: 'My Folder' })
+        )
+      )
+
+      const parent = await getFileParent('mock-token', 'file123')
+      expect(parent).toEqual({ id: 'folder456', name: 'My Folder' })
+    })
+
+    it('throws error when file not found', async () => {
+      server.use(
+        http.get(`${DRIVE_API}/non-existent`, () =>
+          HttpResponse.json({ error: { code: 404 } }, { status: 404 })
+        )
+      )
+
+      await expect(getFileParent('mock-token', 'non-existent')).rejects.toThrow()
     })
   })
 

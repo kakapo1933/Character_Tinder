@@ -14,9 +14,10 @@ interface SwipePageProps {
   folder: DriveFolder
   onComplete: () => void
   onBack: () => void
+  startIndex?: number
 }
 
-export function SwipePage({ folder, onComplete, onBack }: SwipePageProps) {
+export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageProps) {
   const accessToken = useAuthStore((s) => s.accessToken)
   const {
     photos,
@@ -136,7 +137,7 @@ export function SwipePage({ folder, onComplete, onBack }: SwipePageProps) {
       try {
         setLoading(true)
         const images = await listAllImages(accessToken, folder.id)
-        setPhotos(images)
+        setPhotos(images, startIndex ?? 0)
       } catch {
         setError('Failed to load photos')
       } finally {
@@ -145,7 +146,7 @@ export function SwipePage({ folder, onComplete, onBack }: SwipePageProps) {
     }
 
     loadPhotos()
-  }, [accessToken, folder.id, setPhotos])
+  }, [accessToken, folder.id, setPhotos, startIndex])
 
   useEffect(() => {
     if (isComplete && photos.length > 0) {

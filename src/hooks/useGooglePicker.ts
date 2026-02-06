@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { useAuthStore } from '../stores/authStore'
 import { config } from '../config'
 
-type OnSelect = (folder: { id: string; name: string } | null) => void
+type OnSelect = (selection: { id: string; name: string; mimeType: string } | null) => void
 
 const PICKER_SCRIPT_URL = 'https://apis.google.com/js/api.js'
 
@@ -85,11 +85,10 @@ export function useGooglePicker() {
         .setDeveloperKey(config.googleApiKey)
         .setAppId(config.googleAppId)
         .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
-        .setSelectableMimeTypes('application/vnd.google-apps.folder')
         .setCallback((data: google.picker.ResponseObject) => {
           if (data.action === window.google.picker.Action.PICKED && data.docs?.length) {
             const doc = data.docs[0]
-            onSelect({ id: doc.id, name: doc.name })
+            onSelect({ id: doc.id, name: doc.name, mimeType: doc.mimeType })
           } else if (data.action === window.google.picker.Action.CANCEL) {
             onSelect(null)
           }

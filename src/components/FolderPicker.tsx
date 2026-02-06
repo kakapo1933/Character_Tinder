@@ -1,17 +1,22 @@
 import { useGooglePicker } from '../hooks/useGooglePicker'
-import type { DriveFolder } from '../services/googleDriveApi'
+
+interface PickerSelection {
+  id: string
+  name: string
+  mimeType: string
+}
 
 interface FolderPickerProps {
-  onFolderSelect: (folder: DriveFolder) => void
+  onFolderSelect: (selection: PickerSelection) => void
 }
 
 export function FolderPicker({ onFolderSelect }: FolderPickerProps) {
   const { openPicker } = useGooglePicker()
 
   const handleOpenPicker = () => {
-    openPicker((folder) => {
-      if (folder) {
-        onFolderSelect(folder)
+    openPicker((selection) => {
+      if (selection) {
+        onFolderSelect({ id: selection.id, name: selection.name, mimeType: selection.mimeType })
       }
     })
   }

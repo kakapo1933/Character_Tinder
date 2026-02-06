@@ -34,6 +34,7 @@ declare namespace google.picker {
     id: string
     name: string
     mimeType: string
+    parentId?: string
   }
 
   const ViewId: {

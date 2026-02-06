@@ -92,6 +92,15 @@ export function simulatePickerSelect(folder: { id: string; name: string }) {
   }
 }
 
+export function simulatePickerImageSelect(image: { id: string; name: string; mimeType: string }) {
+  if (storedCallback) {
+    storedCallback({
+      action: 'picked',
+      docs: [{ id: image.id, name: image.name, mimeType: image.mimeType }],
+    })
+  }
+}
+
 export function simulatePickerCancel() {
   if (storedCallback) {
     storedCallback({ action: 'cancel' })

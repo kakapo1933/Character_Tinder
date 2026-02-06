@@ -10,6 +10,7 @@ import {
   setupGooglePickerMock,
   cleanupGooglePickerMock,
   simulatePickerSelect,
+  simulatePickerImageSelect,
   mockPickerBuilder,
   mockPicker,
 } from './mocks/googlePicker'
@@ -172,6 +173,101 @@ describe('App', () => {
       expect(dest).not.toBeNull()
       // Format: YYYY-MM-DD_FolderName_UserName
       expect(dest!.name).toMatch(/^\d{4}-\d{2}-\d{2}_Photos 2024_Test User$/)
+    })
+  })
+
+  describe('image selection from picker', () => {
+    const allImagesInFolder = [
+      { id: 'img-0', name: 'alpha.jpg' },
+      { id: 'img-1', name: 'bravo.jpg' },
+      { id: 'img-2', name: 'charlie.jpg' },
+      { id: 'selected-image', name: 'delta.png' },
+      { id: 'img-4', name: 'echo.jpg' },
+    ]
+
+    beforeEach(() => {
+      useAuthStore.getState().login(
+        { id: '1', email: 'test@test.com', name: 'Test User', picture: '' },
+        'mock-token'
+      )
+
+      server.use(
+        // getFileParent: first call gets file's parents, second gets folder metadata
+        http.get(`${DRIVE_API}/:fileId`, ({ params, request }) => {
+          const url = new URL(request.url)
+          const fields = url.searchParams.get('fields') || ''
+
+          // getFileParent step 1: get file's parent IDs
+          if (params.fileId === 'selected-image' && fields.includes('parents')) {
+            return HttpResponse.json({ id: 'selected-image', parents: ['parent-folder-1'] })
+          }
+
+          // getFileParent step 2: get parent folder metadata
+          if (params.fileId === 'parent-folder-1' && fields.includes('name')) {
+            return HttpResponse.json({ id: 'parent-folder-1', name: 'Parent Folder' })
+          }
+
+          return HttpResponse.json({ id: params.fileId, name: 'Unknown' })
+        }),
+        // listAllImages for the parent folder
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const q = url.searchParams.get('q') || ''
+          const isImageQuery = q.includes("mimeType contains 'image/'")
+
+          if (q.includes("'parent-folder-1' in parents") && isImageQuery) {
+            return HttpResponse.json({ files: allImagesInFolder })
+          }
+          return HttpResponse.json({ files: [] })
+        }),
+        // createFolder for auto-destination
+        http.post(DRIVE_API, async ({ request }) => {
+          const body = await request.json() as { name: string }
+          return HttpResponse.json({ id: 'auto-dest-id', name: body.name })
+        })
+      )
+    })
+
+    it('image selection triggers getFileParent and starts swiping from correct index', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+
+      // Click select folder button to open picker
+      await user.click(screen.getByRole('button', { name: /select folder/i }))
+
+      // Simulate picking an image (not a folder) from the picker
+      simulatePickerImageSelect({
+        id: 'selected-image',
+        name: 'delta.png',
+        mimeType: 'image/png',
+      })
+
+      // Should enter swiping mode with photos loaded
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // The selected image is at index 3 in allImagesInFolder
+      // SwipePage should start at that index, so counter shows "4 / 5"
+      expect(screen.getByText('4 / 5')).toBeInTheDocument()
+    })
+
+    it('folder selection still works as before (no startIndex)', async () => {
+      const user = userEvent.setup()
+      render(<App />)
+
+      await user.click(screen.getByRole('button', { name: /select folder/i }))
+
+      // Simulate picking a folder (existing behavior)
+      simulatePickerSelect({ id: 'parent-folder-1', name: 'Parent Folder' })
+
+      // Should enter swiping mode
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // Folder selection starts from index 0, so counter shows "1 / 5"
+      expect(screen.getByText('1 / 5')).toBeInTheDocument()
     })
   })
 })

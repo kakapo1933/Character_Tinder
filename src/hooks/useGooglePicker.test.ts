@@ -118,7 +118,7 @@ describe('useGooglePicker', () => {
       simulatePickerSelect({ id: 'folder-123', name: 'My Photos' })
     })
 
-    expect(selectedFolder).toEqual({ id: 'folder-123', name: 'My Photos' })
+    expect(selectedFolder).toEqual({ id: 'folder-123', name: 'My Photos', mimeType: 'application/vnd.google-apps.folder' })
   })
 
   it('calls onSelect with null on CANCEL action', async () => {
@@ -211,7 +211,7 @@ describe('useGooglePicker', () => {
       simulatePickerSelect({ id: 'shared-folder-1', name: 'Shared Photos' })
     })
 
-    expect(selectedFolder).toEqual({ id: 'shared-folder-1', name: 'Shared Photos' })
+    expect(selectedFolder).toEqual({ id: 'shared-folder-1', name: 'Shared Photos', mimeType: 'application/vnd.google-apps.folder' })
   })
 
   it('adds a third view for shared drives', async () => {
@@ -245,18 +245,6 @@ describe('useGooglePicker', () => {
     expect(mockDocsViewInstance.setSelectFolderEnabled).toHaveBeenCalledWith(true)
   })
 
-  it('restricts selectable items to folders only via setSelectableMimeTypes', async () => {
-    const { result } = renderHook(() => useGooglePicker())
-
-    await act(async () => {
-      result.current.openPicker(() => {})
-    })
-
-    expect(mockPickerBuilder.setSelectableMimeTypes).toHaveBeenCalledWith(
-      'application/vnd.google-apps.folder'
-    )
-  })
-
   it('does not open picker when not authenticated', async () => {
     useAuthStore.getState().logout()
 
@@ -267,5 +255,57 @@ describe('useGooglePicker', () => {
     })
 
     expect(mockPickerBuilder.build).not.toHaveBeenCalled()
+  })
+
+  it('does not restrict selectable mime types', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockPickerBuilder.setSelectableMimeTypes).not.toHaveBeenCalled()
+  })
+
+  it('returns mimeType when an image is selected', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+    let selected: { id: string; name: string; mimeType: string } | null = null
+
+    await act(async () => {
+      result.current.openPicker((item) => {
+        selected = item
+      })
+    })
+
+    const storedCb = mockPickerBuilder.setCallback.mock.calls[0][0]
+    act(() => {
+      storedCb({
+        action: 'picked',
+        docs: [{ id: 'img-1', name: 'photo.png', mimeType: 'image/png' }],
+      })
+    })
+
+    expect(selected).toEqual({ id: 'img-1', name: 'photo.png', mimeType: 'image/png' })
+  })
+
+  it('returns mimeType when a folder is selected', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+    let selected: { id: string; name: string; mimeType: string } | null = null
+
+    await act(async () => {
+      result.current.openPicker((item) => {
+        selected = item
+      })
+    })
+
+    const storedCb = mockPickerBuilder.setCallback.mock.calls[0][0]
+    act(() => {
+      storedCb({
+        action: 'picked',
+        docs: [{ id: 'folder-99', name: 'Vacation', mimeType: 'application/vnd.google-apps.folder' }],
+      })
+    })
+
+    expect(selected).toEqual({ id: 'folder-99', name: 'Vacation', mimeType: 'application/vnd.google-apps.folder' })
   })
 })

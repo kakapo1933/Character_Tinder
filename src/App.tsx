@@ -5,7 +5,7 @@ import { GoogleSignInButton } from './components/GoogleSignInButton'
 import { OAuthCallback } from './components/OAuthCallback'
 import { FolderPicker } from './components/FolderPicker'
 import { SwipePage } from './components/SwipePage'
-import { createFolder } from './services/googleDriveApi'
+import { createFolder, getFileParent, listAllImages } from './services/googleDriveApi'
 import type { DriveFolder } from './services/googleDriveApi'
 
 type AppState = 'auth' | 'folder-select' | 'swiping' | 'complete'
@@ -16,6 +16,7 @@ function App() {
   const user = useAuthStore((s) => s.user)
   const [state, setState] = useState<AppState>(isAuthenticated ? 'folder-select' : 'auth')
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null)
+  const [startIndex, setStartIndex] = useState<number>(0)
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
   const [createFolderError, setCreateFolderError] = useState<string | null>(null)
   const destinationFolder = usePhotoStore((s) => s.destinationFolder)
@@ -47,23 +48,38 @@ function App() {
     )
   }
 
-  const handleFolderSelect = async (folder: DriveFolder) => {
-    setSelectedFolder(folder)
-    setCreateFolderError(null)
-
-    // Auto-create destination folder if not set
+  const autoCreateDestination = async (folderName: string) => {
     if (!destinationFolder && accessToken && user) {
       setIsCreatingFolder(true)
       try {
         const date = new Date().toISOString().split('T')[0]
-        const folderName = `${date}_${folder.name}_${user.name}`
-        const created = await createFolder(accessToken, folderName)
+        const destName = `${date}_${folderName}_${user.name}`
+        const created = await createFolder(accessToken, destName)
         setDestinationFolder(created)
       } catch {
         setCreateFolderError('Could not create destination folder')
       } finally {
         setIsCreatingFolder(false)
       }
+    }
+  }
+
+  const handleFolderSelect = async (selection: { id: string; name: string; mimeType: string }) => {
+    setCreateFolderError(null)
+
+    if (selection.mimeType.startsWith('image/') && accessToken) {
+      // Image selection: find parent folder, load all images, find index
+      const parentFolder = await getFileParent(accessToken, selection.id)
+      const images = await listAllImages(accessToken, parentFolder.id)
+      const index = images.findIndex(img => img.id === selection.id)
+      setStartIndex(index >= 0 ? index : 0)
+      setSelectedFolder(parentFolder)
+      await autoCreateDestination(parentFolder.name)
+    } else {
+      // Folder selection: existing behavior
+      setStartIndex(0)
+      setSelectedFolder({ id: selection.id, name: selection.name })
+      await autoCreateDestination(selection.name)
     }
 
     setState('swiping')
@@ -102,6 +118,7 @@ function App() {
     return (
       <SwipePage
         folder={selectedFolder}
+        startIndex={startIndex}
         onComplete={() => setState('complete')}
         onBack={() => {
           setState('folder-select')

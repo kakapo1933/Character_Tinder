@@ -320,6 +320,34 @@ export async function deleteFile(
   }
 }
 
+export async function getFileParent(
+  accessToken: string,
+  fileId: string
+): Promise<DriveFolder> {
+  const fileResponse = await fetch(
+    `${DRIVE_API}/${fileId}?fields=id,parents&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  if (!fileResponse.ok) {
+    throw new Error(`Failed to get file: ${fileResponse.status}`)
+  }
+  const fileData = await fileResponse.json()
+  const parentId = fileData.parents?.[0]
+  if (!parentId) {
+    throw new Error('File has no parent folder')
+  }
+
+  const folderResponse = await fetch(
+    `${DRIVE_API}/${parentId}?fields=id,name&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  )
+  if (!folderResponse.ok) {
+    throw new Error(`Failed to get parent folder: ${folderResponse.status}`)
+  }
+  const folderData = await folderResponse.json()
+  return { id: folderData.id, name: folderData.name }
+}
+
 export async function createFolder(
   accessToken: string,
   name: string,
