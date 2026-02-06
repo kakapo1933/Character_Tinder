@@ -55,14 +55,22 @@ describe('useGooglePicker', () => {
     expect(window.gapi.load).toHaveBeenCalledWith('picker', expect.any(Function))
   })
 
-  it('creates picker with ViewId.FOLDERS', async () => {
+  it('creates picker with My Drive DocsView as first tab', async () => {
     const { result } = renderHook(() => useGooglePicker())
 
     await act(async () => {
       result.current.openPicker(() => {})
     })
 
-    expect(mockPickerBuilder.addView).toHaveBeenCalledWith('FOLDERS')
+    expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        setOwnedByMe: expect.any(Function),
+        setIncludeFolders: expect.any(Function),
+        setSelectFolderEnabled: expect.any(Function),
+      })
+    )
+    expect(mockDocsViewInstance.setOwnedByMe).toHaveBeenCalledWith(true)
   })
 
   it('passes OAuth token to picker', async () => {
@@ -140,7 +148,6 @@ describe('useGooglePicker', () => {
       result.current.openPicker(() => {})
     })
 
-    expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(1, 'FOLDERS')
     expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({

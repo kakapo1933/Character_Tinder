@@ -62,6 +62,11 @@ export function useGooglePicker() {
 
       await loadPickerScript()
 
+      const myDriveView = new window.google.picker.DocsView()
+        .setOwnedByMe(true)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+
       const sharedFoldersView = new window.google.picker.DocsView()
         .setOwnedByMe(false)
         .setIncludeFolders(true)
@@ -73,7 +78,7 @@ export function useGooglePicker() {
         .setSelectFolderEnabled(true)
 
       const picker = new window.google.picker.PickerBuilder()
-        .addView(window.google.picker.ViewId.FOLDERS)
+        .addView(myDriveView)
         .addView(sharedFoldersView)
         .addView(sharedDrivesView)
         .setOAuthToken(accessToken)

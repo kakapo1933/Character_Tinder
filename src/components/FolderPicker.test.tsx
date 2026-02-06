@@ -60,14 +60,22 @@ describe('FolderPicker', () => {
     expect(onFolderSelect).toHaveBeenCalledWith({ id: 'folder-1', name: 'Photos 2024' })
   })
 
-  it('picker opens with shared folders and shared drives tabs', async () => {
+  it('picker opens with My Drive, shared folders, and shared drives tabs', async () => {
     const user = userEvent.setup()
     render(<FolderPicker onFolderSelect={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: /select folder/i }))
 
     expect(mockPickerBuilder.addView).toHaveBeenCalledTimes(3)
-    expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(1, 'FOLDERS')
+    // First tab: My Drive only (DocsView with setOwnedByMe(true))
+    expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        setOwnedByMe: expect.any(Function),
+        setMimeTypes: expect.any(Function),
+      })
+    )
+    // Second tab: Shared with me
     expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
@@ -75,6 +83,7 @@ describe('FolderPicker', () => {
         setMimeTypes: expect.any(Function),
       })
     )
+    // Third tab: Shared drives
     expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
       3,
       expect.objectContaining({
