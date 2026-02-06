@@ -1,5 +1,4 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from './mocks/server'
@@ -73,11 +72,12 @@ describe('App', () => {
     })
 
     it('enters swiping directly after picking a folder (auto-creates destination)', async () => {
-      const user = userEvent.setup()
       render(<App />)
 
-      // Click select folder button
-      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      // Picker auto-opens when authenticated
+      await waitFor(() => {
+        expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
+      })
 
       // Simulate Google Picker folder selection
       simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
@@ -98,10 +98,13 @@ describe('App', () => {
       // Pre-set a destination folder
       usePhotoStore.getState().setDestinationFolder({ id: 'existing-dest', name: 'My Dest' })
 
-      const user = userEvent.setup()
       render(<App />)
 
-      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      // Picker auto-opens when authenticated
+      await waitFor(() => {
+        expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
+      })
+
       simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
 
       // Should go to SwipePage
@@ -121,10 +124,13 @@ describe('App', () => {
         })
       )
 
-      const user = userEvent.setup()
       render(<App />)
 
-      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      // Picker auto-opens when authenticated
+      await waitFor(() => {
+        expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
+      })
+
       simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
 
       // Should still go to SwipePage (graceful degradation)
@@ -159,10 +165,13 @@ describe('App', () => {
     })
 
     it('auto-created folder name includes date, source folder name, and user name', async () => {
-      const user = userEvent.setup()
       render(<App />)
 
-      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      // Picker auto-opens when authenticated
+      await waitFor(() => {
+        expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
+      })
+
       simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
 
       await waitFor(() => {
@@ -229,11 +238,12 @@ describe('App', () => {
     })
 
     it('image selection triggers getFileParent and starts swiping from correct index', async () => {
-      const user = userEvent.setup()
       render(<App />)
 
-      // Click select folder button to open picker
-      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      // Picker auto-opens when authenticated
+      await waitFor(() => {
+        expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
+      })
 
       // Simulate picking an image (not a folder) from the picker
       simulatePickerImageSelect({
@@ -252,11 +262,55 @@ describe('App', () => {
       expect(screen.getByText('4 / 5')).toBeInTheDocument()
     })
 
-    it('folder selection still works as before (no startIndex)', async () => {
-      const user = userEvent.setup()
+    it('passes pre-loaded images to SwipePage so listAllImages is only called once', async () => {
+      let listImagesCallCount = 0
+
+      // Override listAllImages handler to count calls
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const q = url.searchParams.get('q') || ''
+          const isImageQuery = q.includes("mimeType contains 'image/'")
+
+          if (q.includes("'parent-folder-1' in parents") && isImageQuery) {
+            listImagesCallCount++
+            return HttpResponse.json({ files: allImagesInFolder })
+          }
+          return HttpResponse.json({ files: [] })
+        }),
+      )
+
       render(<App />)
 
-      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      // Picker auto-opens when authenticated
+      await waitFor(() => {
+        expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
+      })
+
+      simulatePickerImageSelect({
+        id: 'selected-image',
+        name: 'delta.png',
+        mimeType: 'image/png',
+      })
+
+      // Should enter swiping mode
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // resolveSelection calls listAllImages once.
+      // If App passes initialPhotos to SwipePage, usePhotoLoader skips the API call.
+      // Without initialPhotos, usePhotoLoader calls listAllImages again (count = 2).
+      expect(listImagesCallCount).toBe(1)
+    })
+
+    it('folder selection still works as before (no startIndex)', async () => {
+      render(<App />)
+
+      // Picker auto-opens when authenticated
+      await waitFor(() => {
+        expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
+      })
 
       // Simulate picking a folder (existing behavior)
       simulatePickerSelect({ id: 'parent-folder-1', name: 'Parent Folder' })

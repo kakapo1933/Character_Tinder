@@ -8,7 +8,7 @@ import { CompletionState } from './components/CompletionState'
 import { useGooglePicker } from './hooks/useGooglePicker'
 import { createDestinationFolder } from './services/destinationFolder'
 import { resolveSelection } from './services/folderSelection'
-import type { DriveFolder } from './services/googleDriveApi'
+import type { DriveFolder, DriveImage } from './services/googleDriveApi'
 import type { PickerSelection } from './types/picker'
 
 type AppState = 'auth' | 'picker' | 'swiping' | 'complete'
@@ -20,6 +20,7 @@ function App() {
   const [state, setState] = useState<AppState>(isAuthenticated ? 'picker' : 'auth')
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null)
   const [startIndex, setStartIndex] = useState<number>(0)
+  const [resolvedImages, setResolvedImages] = useState<DriveImage[] | undefined>(undefined)
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
   const [createFolderError, setCreateFolderError] = useState<string | null>(null)
   const destinationFolder = usePhotoStore((s) => s.destinationFolder)
@@ -53,6 +54,7 @@ function App() {
     const resolved = await resolveSelection(accessToken, selection)
     setStartIndex(resolved.startIndex)
     setSelectedFolder(resolved.folder)
+    setResolvedImages(resolved.images)
     await autoCreateDestination(resolved.folder.name)
 
     setState('swiping')
@@ -181,9 +183,11 @@ function App() {
       <SwipePage
         folder={selectedFolder}
         startIndex={startIndex}
+        initialPhotos={resolvedImages}
         onComplete={() => setState('complete')}
         onBack={() => {
           setState('picker')
+          setResolvedImages(undefined)
         }}
       />
     )
@@ -195,6 +199,7 @@ function App() {
         onSortAgain={() => setState('swiping')}
         onStartOver={() => {
           setSelectedFolder(null)
+          setResolvedImages(undefined)
           setState('picker')
         }}
       />
