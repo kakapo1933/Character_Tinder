@@ -7,16 +7,16 @@ import { useImagePreloader } from '../hooks/useImagePreloader'
 import { SwipeCard } from './SwipeCard'
 import { ProgressBar } from './ProgressBar'
 import { UndoButton } from './UndoButton'
+import { DestinationFolderPicker } from './DestinationFolderPicker'
 import type { DriveFolder } from '../services/googleDriveApi'
 
 interface SwipePageProps {
   folder: DriveFolder
-  startIndex?: number
   onComplete: () => void
   onBack: () => void
 }
 
-export function SwipePage({ folder, startIndex = 0, onComplete, onBack }: SwipePageProps) {
+export function SwipePage({ folder, onComplete, onBack }: SwipePageProps) {
   const accessToken = useAuthStore((s) => s.accessToken)
   const {
     photos,
@@ -36,6 +36,7 @@ export function SwipePage({ folder, startIndex = 0, onComplete, onBack }: SwipeP
     removeCopiedFileId,
   } = usePhotoStore()
 
+  const setDestinationFolder = usePhotoStore((s) => s.setDestinationFolder)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copyError, setCopyError] = useState<string | null>(null)
@@ -45,6 +46,7 @@ export function SwipePage({ folder, startIndex = 0, onComplete, onBack }: SwipeP
   const [alreadyCopiedInfo, setAlreadyCopiedInfo] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [operationType, setOperationType] = useState<'copy' | 'delete' | null>(null)
+  const [showDestinationPicker, setShowDestinationPicker] = useState(false)
 
   // Keep with copy to destination folder
   const handleKeep = useCallback(async () => {
@@ -134,7 +136,7 @@ export function SwipePage({ folder, startIndex = 0, onComplete, onBack }: SwipeP
       try {
         setLoading(true)
         const images = await listAllImages(accessToken, folder.id)
-        setPhotos(images, startIndex)
+        setPhotos(images)
       } catch {
         setError('Failed to load photos')
       } finally {
@@ -143,7 +145,7 @@ export function SwipePage({ folder, startIndex = 0, onComplete, onBack }: SwipeP
     }
 
     loadPhotos()
-  }, [accessToken, folder.id, setPhotos, startIndex])
+  }, [accessToken, folder.id, setPhotos])
 
   useEffect(() => {
     if (isComplete && photos.length > 0) {
@@ -205,8 +207,25 @@ export function SwipePage({ folder, startIndex = 0, onComplete, onBack }: SwipeP
           ← Back
         </button>
         <h1 className="font-medium text-gray-900">{folder.name}</h1>
-        <div className="text-sm text-gray-500">
-          {currentIndex + 1} / {photos.length}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowDestinationPicker(true)}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            title="Change destination folder"
+            aria-label="Change destination folder"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+            </svg>
+            {destinationFolder ? (
+              <span className="max-w-[80px] truncate">{destinationFolder.name}</span>
+            ) : (
+              <span>Set dest</span>
+            )}
+          </button>
+          <span className="text-sm text-gray-500">
+            {currentIndex + 1} / {photos.length}
+          </span>
         </div>
       </header>
 
@@ -324,22 +343,25 @@ export function SwipePage({ folder, startIndex = 0, onComplete, onBack }: SwipeP
           </div>
         </div>
 
-        {/* Destination folder indicator */}
-        {destinationFolder && (
-          <div className="mt-3 text-center">
-            <span className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-              </svg>
-              → {destinationFolder.name}
-            </span>
-          </div>
-        )}
-
         <div className="mt-2 text-center text-xs text-gray-400">
           ← → or swipe
         </div>
       </footer>
+
+      {/* Destination picker modal */}
+      {showDestinationPicker && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
+            <DestinationFolderPicker
+              onSelect={(folder) => {
+                setDestinationFolder(folder)
+                setShowDestinationPicker(false)
+              }}
+              onCancel={() => setShowDestinationPicker(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

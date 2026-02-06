@@ -4,8 +4,8 @@ import { usePhotoStore } from './stores/photoStore'
 import { GoogleSignInButton } from './components/GoogleSignInButton'
 import { OAuthCallback } from './components/OAuthCallback'
 import { FolderPicker } from './components/FolderPicker'
-import { DestinationFolderPicker } from './components/DestinationFolderPicker'
 import { SwipePage } from './components/SwipePage'
+import { createFolder } from './services/googleDriveApi'
 import type { DriveFolder } from './services/googleDriveApi'
 
 type AppState = 'auth' | 'folder-select' | 'swiping' | 'complete'
@@ -13,10 +13,11 @@ type AppState = 'auth' | 'folder-select' | 'swiping' | 'complete'
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const accessToken = useAuthStore((s) => s.accessToken)
+  const user = useAuthStore((s) => s.user)
   const [state, setState] = useState<AppState>(isAuthenticated ? 'folder-select' : 'auth')
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null)
-  const [startIndex, setStartIndex] = useState(0)
-  const [showDestinationPicker, setShowDestinationPicker] = useState(false)
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+  const [createFolderError, setCreateFolderError] = useState<string | null>(null)
   const destinationFolder = usePhotoStore((s) => s.destinationFolder)
   const setDestinationFolder = usePhotoStore((s) => s.setDestinationFolder)
   const validateDestinationFolder = usePhotoStore((s) => s.validateDestinationFolder)
@@ -46,6 +47,28 @@ function App() {
     )
   }
 
+  const handleFolderSelect = async (folder: DriveFolder) => {
+    setSelectedFolder(folder)
+    setCreateFolderError(null)
+
+    // Auto-create destination folder if not set
+    if (!destinationFolder && accessToken && user) {
+      setIsCreatingFolder(true)
+      try {
+        const date = new Date().toISOString().split('T')[0]
+        const folderName = `${date}_${folder.name}_${user.name}`
+        const created = await createFolder(accessToken, folderName)
+        setDestinationFolder(created)
+      } catch {
+        setCreateFolderError('Could not create destination folder')
+      } finally {
+        setIsCreatingFolder(false)
+      }
+    }
+
+    setState('swiping')
+  }
+
   if (state === 'folder-select' || !selectedFolder) {
     return (
       <div className="min-h-screen bg-gray-100">
@@ -54,59 +77,23 @@ function App() {
           <GoogleSignInButton />
         </header>
         <main className="max-w-md mx-auto mt-8 bg-white rounded-lg shadow">
-          <div className="p-4 border-b flex items-center justify-between">
-            <div>
-              <h2 className="font-medium text-gray-900">Select a folder</h2>
-              <p className="text-sm text-gray-500">Choose a folder with photos to sort</p>
-            </div>
-            <button
-              onClick={() => setShowDestinationPicker(true)}
-              className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 transition-colors"
-              title="Set destination folder"
-              aria-label="Set destination folder"
-            >
-              <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-              </svg>
-              {destinationFolder ? (
-                <span className="text-gray-700 max-w-[100px] truncate">{destinationFolder.name}</span>
-              ) : (
-                <span className="text-gray-500">Set destination</span>
-              )}
-            </button>
+          <div className="p-4 border-b">
+            <h2 className="font-medium text-gray-900">Select a folder</h2>
+            <p className="text-sm text-gray-500">Choose a folder with photos to sort</p>
           </div>
-          <FolderPicker
-            onImageClick={(folder, index) => {
-              setSelectedFolder(folder)
-              setStartIndex(index)
-              if (destinationFolder) {
-                setState('swiping')
-              } else {
-                setShowDestinationPicker(true)
-              }
-            }}
-          />
+          {isCreatingFolder && (
+            <div className="flex items-center justify-center p-4 bg-blue-50 border-b">
+              <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full mr-2" />
+              <span className="text-sm text-blue-700">Creating destination folder...</span>
+            </div>
+          )}
+          {createFolderError && (
+            <div className="p-4 bg-yellow-50 border-b text-sm text-yellow-700">
+              {createFolderError}
+            </div>
+          )}
+          <FolderPicker onFolderSelect={handleFolderSelect} />
         </main>
-
-        {/* Destination picker modal */}
-        {showDestinationPicker && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[80vh] overflow-hidden">
-              <DestinationFolderPicker
-                onSelect={(folder) => {
-                  setDestinationFolder(folder)
-                  setShowDestinationPicker(false)
-                  if (selectedFolder) {
-                    setState('swiping')
-                  }
-                }}
-                onCancel={() => {
-                  setShowDestinationPicker(false)
-                }}
-              />
-            </div>
-          </div>
-        )}
       </div>
     )
   }
@@ -115,10 +102,8 @@ function App() {
     return (
       <SwipePage
         folder={selectedFolder}
-        startIndex={startIndex}
         onComplete={() => setState('complete')}
         onBack={() => {
-          setStartIndex(0)
           setState('folder-select')
         }}
       />

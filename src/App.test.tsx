@@ -22,11 +22,6 @@ const mockImages = [
   { id: 'image-2', name: 'beach.png' },
 ]
 
-const mockFolders = [
-  { id: 'folder-1', name: 'Photos 2024' },
-  { id: 'folder-2', name: 'Vacation' },
-]
-
 describe('App', () => {
   beforeEach(() => {
     resetPickerState()
@@ -52,10 +47,10 @@ describe('App', () => {
     expect(screen.getByText('Character Tinder')).toBeInTheDocument()
   })
 
-  describe('destination folder flow', () => {
+  describe('streamlined user flow', () => {
     beforeEach(() => {
       useAuthStore.getState().login(
-        { id: '1', email: 'test@test.com', name: 'Test', picture: '' },
+        { id: '1', email: 'test@test.com', name: 'Test User', picture: '' },
         'mock-token'
       )
       server.use(
@@ -63,215 +58,88 @@ describe('App', () => {
           const url = new URL(request.url)
           const q = url.searchParams.get('q') || ''
           const isImageQuery = q.includes("mimeType contains 'image/'")
-          const isFolderQuery = q.includes("mimeType='application/vnd.google-apps.folder'")
 
           if (q.includes("'folder-1' in parents") && isImageQuery) {
             return HttpResponse.json({ files: mockImages })
-          }
-          if (q.includes("'root' in parents") && isFolderQuery) {
-            return HttpResponse.json({ files: mockFolders })
-          }
-          if (q.includes('sharedWithMe = true') && isFolderQuery) {
-            return HttpResponse.json({ files: [] })
           }
           return HttpResponse.json({ files: [] })
         }),
         http.post(DRIVE_API, async ({ request }) => {
           const body = await request.json() as { name: string }
-          return HttpResponse.json({ id: 'new-folder-id', name: body.name })
+          return HttpResponse.json({ id: 'auto-dest-id', name: body.name })
         })
       )
     })
 
-    it('shows destination folder picker modal when clicking image without destination set', async () => {
+    it('enters swiping directly after picking a folder (auto-creates destination)', async () => {
       const user = userEvent.setup()
       render(<App />)
 
-      // Use Google Picker to select source folder
+      // Click select folder button
       await user.click(screen.getByRole('button', { name: /select folder/i }))
+
+      // Simulate Google Picker folder selection
       simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
 
-      // Wait for images to load
-      await waitFor(() => {
-        expect(screen.getByAltText('sunset.jpg')).toBeInTheDocument()
-      })
-
-      // Click on an image without setting destination first
-      await user.click(screen.getByAltText('sunset.jpg'))
-
-      // Should show destination folder picker modal
-      await waitFor(() => {
-        expect(screen.getByText('Select destination folder')).toBeInTheDocument()
-      })
-    })
-
-    it('proceeds to swiping after selecting destination in modal', async () => {
-      const user = userEvent.setup()
-      render(<App />)
-
-      // Select source folder via picker
-      await user.click(screen.getByRole('button', { name: /select folder/i }))
-      simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
-
-      await waitFor(() => {
-        expect(screen.getByAltText('sunset.jpg')).toBeInTheDocument()
-      })
-      await user.click(screen.getByAltText('sunset.jpg'))
-
-      // Should show destination picker modal
-      await waitFor(() => {
-        expect(screen.getByText('Select destination folder')).toBeInTheDocument()
-      })
-
-      // Wait for modal to load folders and select Vacation
-      await waitFor(() => {
-        expect(screen.getAllByText('Vacation').length).toBeGreaterThanOrEqual(1)
-      })
-      const vacationButtons = screen.getAllByText('Vacation')
-      await user.click(vacationButtons[vacationButtons.length - 1])
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /select this folder/i })).toBeInTheDocument()
-      })
-      await user.click(screen.getByRole('button', { name: /select this folder/i }))
-
-      // Should now be in swiping mode
+      // Should go directly to SwipePage
       await waitFor(() => {
         expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
       })
+
+      // Destination folder should have been auto-created
+      const dest = usePhotoStore.getState().destinationFolder
+      expect(dest).not.toBeNull()
+      expect(dest!.name).toMatch(/Photos 2024/)
+      expect(dest!.name).toMatch(/Test User/)
     })
 
-    it('can create new folder as destination in modal', async () => {
+    it('skips auto-create when destination folder already exists', async () => {
+      // Pre-set a destination folder
+      usePhotoStore.getState().setDestinationFolder({ id: 'existing-dest', name: 'My Dest' })
+
       const user = userEvent.setup()
       render(<App />)
 
-      // Select source folder via picker
       await user.click(screen.getByRole('button', { name: /select folder/i }))
       simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
 
-      await waitFor(() => {
-        expect(screen.getByAltText('sunset.jpg')).toBeInTheDocument()
-      })
-      await user.click(screen.getByAltText('sunset.jpg'))
-
-      // Should show destination picker modal
-      await waitFor(() => {
-        expect(screen.getByText('Select destination folder')).toBeInTheDocument()
-      })
-
-      // Create new folder
-      await user.click(screen.getByRole('button', { name: /create new folder/i }))
-      await user.type(screen.getByPlaceholderText(/folder name/i), 'Liked Photos')
-      await user.click(screen.getByRole('button', { name: /^create$/i }))
-
-      // Should now be in swiping mode
+      // Should go to SwipePage
       await waitFor(() => {
         expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
       })
+
+      // Destination folder should remain the pre-set one
+      expect(usePhotoStore.getState().destinationFolder).toEqual({ id: 'existing-dest', name: 'My Dest' })
     })
 
-    it('shows folder icon in title section for destination selection', async () => {
-      render(<App />)
+    it('still enters swiping even if auto-create fails', async () => {
+      // Make createFolder fail
+      server.use(
+        http.post(DRIVE_API, () => {
+          return HttpResponse.json({ error: 'Error' }, { status: 500 })
+        })
+      )
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
-      })
-    })
-
-    it('opens destination picker modal when clicking folder icon', async () => {
       const user = userEvent.setup()
       render(<App />)
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
-      })
-
-      // Click the destination folder icon
-      await user.click(screen.getByRole('button', { name: /set destination/i }))
-
-      // Should show destination picker modal
-      await waitFor(() => {
-        expect(screen.getByText('Select destination folder')).toBeInTheDocument()
-      })
-    })
-
-    it('shows selected destination folder name in title section', async () => {
-      const user = userEvent.setup()
-      render(<App />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
-      })
-
-      // Click the destination folder icon
-      await user.click(screen.getByRole('button', { name: /set destination/i }))
-
-      // Wait for modal to load folders
-      await waitFor(() => {
-        expect(screen.getAllByText('Vacation').length).toBeGreaterThanOrEqual(1)
-      })
-
-      // Click Vacation in the modal (use last one since modal is on top)
-      const vacationButtons = screen.getAllByText('Vacation')
-      await user.click(vacationButtons[vacationButtons.length - 1])
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /select this folder/i })).toBeInTheDocument()
-      })
-      await user.click(screen.getByRole('button', { name: /select this folder/i }))
-
-      // Should show destination folder name in the title section button
-      await waitFor(() => {
-        const button = screen.getByRole('button', { name: /set destination/i })
-        expect(button).toHaveTextContent('Vacation')
-      })
-    })
-
-    it('proceeds directly to swiping after selecting image when destination is set', async () => {
-      const user = userEvent.setup()
-      render(<App />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
-      })
-
-      // First set destination folder via the icon button
-      await user.click(screen.getByRole('button', { name: /set destination/i }))
-
-      // Wait for modal to load folders
-      await waitFor(() => {
-        expect(screen.getAllByText('Vacation').length).toBeGreaterThanOrEqual(1)
-      })
-
-      // Click Vacation in the modal
-      const vacationButtons = screen.getAllByText('Vacation')
-      await user.click(vacationButtons[vacationButtons.length - 1])
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /select this folder/i })).toBeInTheDocument()
-      })
-      await user.click(screen.getByRole('button', { name: /select this folder/i }))
-
-      // Now select source folder via picker and click image
       await user.click(screen.getByRole('button', { name: /select folder/i }))
       simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
 
-      await waitFor(() => {
-        expect(screen.getByAltText('sunset.jpg')).toBeInTheDocument()
-      })
-      await user.click(screen.getByAltText('sunset.jpg'))
-
-      // Should go directly to swiping (no destination picker modal)
+      // Should still go to SwipePage (graceful degradation)
       await waitFor(() => {
         expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
       })
+
+      // No destination folder set
+      expect(usePhotoStore.getState().destinationFolder).toBeNull()
     })
 
     it('validates destination folder on app load and clears if deleted', async () => {
       // Pre-set a destination folder that has been "deleted"
       usePhotoStore.getState().setDestinationFolder({ id: 'deleted-folder', name: 'Deleted Folder' })
 
-      // Mock getFolder to return null (folder deleted)
+      // Mock getFolder to return 404 (folder deleted)
       server.use(
         http.get(`${DRIVE_API}/:folderId`, ({ params }) => {
           if (params.folderId === 'deleted-folder') {
@@ -287,37 +155,23 @@ describe('App', () => {
       await waitFor(() => {
         expect(usePhotoStore.getState().destinationFolder).toBeNull()
       })
-
-      // UI should show "Set destination" instead of the deleted folder name
-      expect(screen.getByRole('button', { name: /set destination/i })).toHaveTextContent('Set destination')
     })
 
-    it('keeps destination folder if it still exists', async () => {
-      // Pre-set a valid destination folder
-      usePhotoStore.getState().setDestinationFolder({ id: 'valid-folder', name: 'Valid Folder' })
-
-      // Mock getFolder to return the folder (still exists)
-      server.use(
-        http.get(`${DRIVE_API}/:folderId`, ({ params }) => {
-          if (params.folderId === 'valid-folder') {
-            return HttpResponse.json({ id: 'valid-folder', name: 'Valid Folder' })
-          }
-          return HttpResponse.json({ error: { code: 404 } }, { status: 404 })
-        })
-      )
-
+    it('auto-created folder name includes date, source folder name, and user name', async () => {
+      const user = userEvent.setup()
       render(<App />)
 
-      // Wait for page to render
+      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
+
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
       })
 
-      // Destination folder should still be set
-      expect(usePhotoStore.getState().destinationFolder).toEqual({ id: 'valid-folder', name: 'Valid Folder' })
-
-      // UI should show the folder name
-      expect(screen.getByRole('button', { name: /set destination/i })).toHaveTextContent('Valid Folder')
+      const dest = usePhotoStore.getState().destinationFolder
+      expect(dest).not.toBeNull()
+      // Format: YYYY-MM-DD_FolderName_UserName
+      expect(dest!.name).toMatch(/^\d{4}-\d{2}-\d{2}_Photos 2024_Test User$/)
     })
   })
 })
