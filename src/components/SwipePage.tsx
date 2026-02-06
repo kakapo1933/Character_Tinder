@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from '../stores/authStore'
 import { usePhotoStore } from '../stores/photoStore'
 import { copyFile, deleteFile } from '../services/googleDriveApi'
+import { createDestinationFolder } from '../services/destinationFolder'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useAutoHide } from '../hooks/useAutoHide'
 import { useImagePreloader } from '../hooks/useImagePreloader'
@@ -31,6 +32,7 @@ interface SwipePageProps {
 
 export function SwipePage({ folder, onComplete, onBack, startIndex, initialPhotos }: SwipePageProps) {
   const accessToken = useAuthStore((s) => s.accessToken)
+  const user = useAuthStore((s) => s.user)
   const {
     photos,
     currentPhoto,
@@ -51,6 +53,21 @@ export function SwipePage({ folder, onComplete, onBack, startIndex, initialPhoto
   const setDestinationFolder = usePhotoStore((s) => s.setDestinationFolder)
   const { loading, error } = usePhotoLoader({ folderId: folder.id, accessToken, startIndex, initialPhotos })
   const [toast, setToast] = useState<Toast | null>(null)
+
+  // Create destination folder in parallel with photo loading
+  useEffect(() => {
+    if (!accessToken || !user || destinationFolder) return
+
+    createDestinationFolder(accessToken, folder.name, user.name)
+      .then((created) => {
+        setDestinationFolder(created)
+      })
+      .catch((err) => {
+        console.error('Failed to create destination folder:', err)
+        setToast({ message: 'Could not create destination folder', type: 'error' })
+        setTimeout(() => setToast(null), 3000)
+      })
+  }, [accessToken, user, folder.name, destinationFolder, setDestinationFolder])
   const [isSaving, setIsSaving] = useState(false)
   const [showDestinationPicker, setShowDestinationPicker] = useState(false)
 

@@ -1258,6 +1258,116 @@ describe('SwipePage', () => {
     })
   })
 
+  describe('parallel destination creation', () => {
+    it('creates destination folder on mount when no destination is set', async () => {
+      // Ensure no destination folder is set
+      usePhotoStore.getState().setDestinationFolder(null as unknown as { id: string; name: string })
+
+      let createFolderCalled = false
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const q = url.searchParams.get('q') || ''
+          if (q.includes("'source-folder' in parents") && q.includes('mimeType contains')) {
+            return HttpResponse.json({ files: mockImages })
+          }
+          return HttpResponse.json({ files: [] })
+        }),
+        http.post(DRIVE_API, async ({ request }) => {
+          createFolderCalled = true
+          const body = (await request.json()) as { name: string }
+          return HttpResponse.json({ id: 'auto-dest-id', name: body.name })
+        })
+      )
+
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+        />
+      )
+
+      // Wait for photos to load
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // Destination folder should have been created in parallel
+      await waitFor(() => {
+        expect(createFolderCalled).toBe(true)
+      })
+      expect(usePhotoStore.getState().destinationFolder).not.toBeNull()
+    })
+
+    it('skips destination creation when destination folder already exists', async () => {
+      usePhotoStore.getState().setDestinationFolder({ id: 'existing-dest', name: 'Existing' })
+
+      let createFolderCalled = false
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const q = url.searchParams.get('q') || ''
+          if (q.includes("'source-folder' in parents") && q.includes('mimeType contains')) {
+            return HttpResponse.json({ files: mockImages })
+          }
+          return HttpResponse.json({ files: [] })
+        }),
+        http.post(DRIVE_API, () => {
+          createFolderCalled = true
+          return HttpResponse.json({ id: 'new-dest', name: 'New' })
+        })
+      )
+
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+        />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+
+      // Should NOT have called create folder
+      expect(createFolderCalled).toBe(false)
+      expect(usePhotoStore.getState().destinationFolder).toEqual({ id: 'existing-dest', name: 'Existing' })
+    })
+
+    it('shows toast on destination creation failure but continues loading photos', async () => {
+      usePhotoStore.getState().setDestinationFolder(null as unknown as { id: string; name: string })
+
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          const url = new URL(request.url)
+          const q = url.searchParams.get('q') || ''
+          if (q.includes("'source-folder' in parents") && q.includes('mimeType contains')) {
+            return HttpResponse.json({ files: mockImages })
+          }
+          return HttpResponse.json({ files: [] })
+        }),
+        http.post(DRIVE_API, () => {
+          return HttpResponse.json({ error: 'Error' }, { status: 500 })
+        })
+      )
+
+      render(
+        <SwipePage
+          folder={mockFolder}
+          onComplete={vi.fn()}
+          onBack={vi.fn()}
+        />
+      )
+
+      // Photos should still load even if destination creation fails
+      await waitFor(() => {
+        expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
+      })
+    })
+  })
+
   describe('accessibility', () => {
     it('respects prefers-reduced-motion by wrapping animations', async () => {
       // Mock matchMedia for reduced motion
