@@ -1,28 +1,50 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from './mocks/server'
 import App from './App'
 import { useAuthStore } from './stores/authStore'
 import { usePhotoStore } from './stores/photoStore'
+import {
+  setupGooglePickerMock,
+  cleanupGooglePickerMock,
+  simulatePickerSelect,
+  mockPickerBuilder,
+  mockPicker,
+} from './mocks/googlePicker'
+import { resetPickerState } from './hooks/useGooglePicker'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
-
-const mockFolders = [
-  { id: 'folder-1', name: 'Photos 2024' },
-  { id: 'folder-2', name: 'Vacation' },
-]
 
 const mockImages = [
   { id: 'image-1', name: 'sunset.jpg' },
   { id: 'image-2', name: 'beach.png' },
 ]
 
+const mockFolders = [
+  { id: 'folder-1', name: 'Photos 2024' },
+  { id: 'folder-2', name: 'Vacation' },
+]
+
 describe('App', () => {
   beforeEach(() => {
+    resetPickerState()
+    setupGooglePickerMock()
     useAuthStore.setState({ accessToken: null, isAuthenticated: false })
     usePhotoStore.getState().reset()
+  })
+
+  afterEach(() => {
+    cleanupGooglePickerMock()
+    mockPickerBuilder.addView.mockClear()
+    mockPickerBuilder.setOAuthToken.mockClear()
+    mockPickerBuilder.setDeveloperKey.mockClear()
+    mockPickerBuilder.setAppId.mockClear()
+    mockPickerBuilder.setCallback.mockClear()
+    mockPickerBuilder.enableFeature.mockClear()
+    mockPickerBuilder.build.mockClear()
+    mockPicker.setVisible.mockClear()
   })
 
   it('renders the title', () => {
@@ -46,9 +68,6 @@ describe('App', () => {
           if (q.includes("'folder-1' in parents") && isImageQuery) {
             return HttpResponse.json({ files: mockImages })
           }
-          if (q.includes("'folder-1' in parents") && isFolderQuery) {
-            return HttpResponse.json({ files: [] })
-          }
           if (q.includes("'root' in parents") && isFolderQuery) {
             return HttpResponse.json({ files: mockFolders })
           }
@@ -68,13 +87,9 @@ describe('App', () => {
       const user = userEvent.setup()
       render(<App />)
 
-      // Wait for folder picker to load
-      await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
-      })
-
-      // Click into a folder with images
-      await user.click(screen.getByText('Photos 2024'))
+      // Use Google Picker to select source folder
+      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
 
       // Wait for images to load
       await waitFor(() => {
@@ -94,11 +109,10 @@ describe('App', () => {
       const user = userEvent.setup()
       render(<App />)
 
-      // Navigate to source folder and select image
-      await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
-      })
-      await user.click(screen.getByText('Photos 2024'))
+      // Select source folder via picker
+      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
+
       await waitFor(() => {
         expect(screen.getByAltText('sunset.jpg')).toBeInTheDocument()
       })
@@ -131,11 +145,10 @@ describe('App', () => {
       const user = userEvent.setup()
       render(<App />)
 
-      // Navigate to source folder and select image
-      await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
-      })
-      await user.click(screen.getByText('Photos 2024'))
+      // Select source folder via picker
+      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
+
       await waitFor(() => {
         expect(screen.getByAltText('sunset.jpg')).toBeInTheDocument()
       })
@@ -161,11 +174,8 @@ describe('App', () => {
       render(<App />)
 
       await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
       })
-
-      // Should show folder icon button in title section
-      expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
     })
 
     it('opens destination picker modal when clicking folder icon', async () => {
@@ -173,7 +183,7 @@ describe('App', () => {
       render(<App />)
 
       await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
       })
 
       // Click the destination folder icon
@@ -190,13 +200,13 @@ describe('App', () => {
       render(<App />)
 
       await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
       })
 
       // Click the destination folder icon
       await user.click(screen.getByRole('button', { name: /set destination/i }))
 
-      // Wait for modal to load folders (there are now 2 instances of folders - main view + modal)
+      // Wait for modal to load folders
       await waitFor(() => {
         expect(screen.getAllByText('Vacation').length).toBeGreaterThanOrEqual(1)
       })
@@ -222,7 +232,7 @@ describe('App', () => {
       render(<App />)
 
       await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
       })
 
       // First set destination folder via the icon button
@@ -242,11 +252,10 @@ describe('App', () => {
       })
       await user.click(screen.getByRole('button', { name: /select this folder/i }))
 
-      // Now navigate to Photos 2024 folder and click image
-      await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
-      })
-      await user.click(screen.getByText('Photos 2024'))
+      // Now select source folder via picker and click image
+      await user.click(screen.getByRole('button', { name: /select folder/i }))
+      simulatePickerSelect({ id: 'folder-1', name: 'Photos 2024' })
+
       await waitFor(() => {
         expect(screen.getByAltText('sunset.jpg')).toBeInTheDocument()
       })
@@ -299,9 +308,9 @@ describe('App', () => {
 
       render(<App />)
 
-      // Wait for validation to complete
+      // Wait for page to render
       await waitFor(() => {
-        expect(screen.getByText('Photos 2024')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: /set destination/i })).toBeInTheDocument()
       })
 
       // Destination folder should still be set
