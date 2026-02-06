@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuthStore } from './stores/authStore'
 import { usePhotoStore } from './stores/photoStore'
 import { GoogleSignInButton } from './components/GoogleSignInButton'
@@ -6,6 +6,7 @@ import { OAuthCallback } from './components/OAuthCallback'
 import { FolderPicker } from './components/FolderPicker'
 import { SwipePage } from './components/SwipePage'
 import { CompletionState } from './components/CompletionState'
+import { useGooglePicker } from './hooks/useGooglePicker'
 import { createDestinationFolder } from './services/destinationFolder'
 import { resolveSelection } from './services/folderSelection'
 import type { DriveFolder } from './services/googleDriveApi'
@@ -25,31 +26,8 @@ function App() {
   const destinationFolder = usePhotoStore((s) => s.destinationFolder)
   const setDestinationFolder = usePhotoStore((s) => s.setDestinationFolder)
   const validateDestinationFolder = usePhotoStore((s) => s.validateDestinationFolder)
-
-  // Validate destination folder on mount (check if it still exists)
-  useEffect(() => {
-    if (accessToken) {
-      validateDestinationFolder(accessToken)
-    }
-  }, [accessToken, validateDestinationFolder])
-
-  // Handle OAuth callback (works with both /callback and /Character_Tinder/callback)
-  // Also handle when redirected from 404.html with access_token in hash
-  if (window.location.pathname.endsWith('/callback') || window.location.hash.includes('access_token')) {
-    return <OAuthCallback />
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-zinc-100 mb-2">Character Tinder</h1>
-          <p className="text-zinc-400 mb-8">Swipe through your Google Drive photos</p>
-          <GoogleSignInButton />
-        </div>
-      </div>
-    )
-  }
+  const { openPicker } = useGooglePicker()
+  const pickerOpenedRef = useRef(false)
 
   const autoCreateDestination = async (folderName: string) => {
     if (!destinationFolder && accessToken && user) {
@@ -76,6 +54,51 @@ function App() {
     await autoCreateDestination(resolved.folder.name)
 
     setState('swiping')
+  }
+
+  // Validate destination folder on mount (check if it still exists)
+  useEffect(() => {
+    if (accessToken) {
+      validateDestinationFolder(accessToken)
+    }
+  }, [accessToken, validateDestinationFolder])
+
+  // Auto-open picker when authenticated and in picker state
+  useEffect(() => {
+    if (state === 'picker' && isAuthenticated && !pickerOpenedRef.current) {
+      pickerOpenedRef.current = true
+      openPicker((selection) => {
+        pickerOpenedRef.current = false
+        if (selection) {
+          handleFolderSelect(selection)
+        }
+      })
+    }
+  }, [state, isAuthenticated, openPicker])
+
+  // Reset picker guard when leaving picker state
+  useEffect(() => {
+    if (state !== 'picker') {
+      pickerOpenedRef.current = false
+    }
+  }, [state])
+
+  // Handle OAuth callback (works with both /callback and /Character_Tinder/callback)
+  // Also handle when redirected from 404.html with access_token in hash
+  if (window.location.pathname.endsWith('/callback') || window.location.hash.includes('access_token')) {
+    return <OAuthCallback />
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-zinc-100 mb-2">Character Tinder</h1>
+          <p className="text-zinc-400 mb-8">Swipe through your Google Drive photos</p>
+          <GoogleSignInButton />
+        </div>
+      </div>
+    )
   }
 
   if (state === 'picker' || !selectedFolder) {
