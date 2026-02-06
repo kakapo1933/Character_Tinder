@@ -6,16 +6,18 @@ import { OAuthCallback } from './components/OAuthCallback'
 import { FolderPicker } from './components/FolderPicker'
 import { SwipePage } from './components/SwipePage'
 import { CompletionState } from './components/CompletionState'
-import { createFolder, getFileParent, listAllImages } from './services/googleDriveApi'
+import { createDestinationFolder } from './services/destinationFolder'
+import { resolveSelection } from './services/folderSelection'
 import type { DriveFolder } from './services/googleDriveApi'
+import type { PickerSelection } from './types/picker'
 
-type AppState = 'auth' | 'folder-select' | 'swiping' | 'complete'
+type AppState = 'auth' | 'picker' | 'swiping' | 'complete'
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const accessToken = useAuthStore((s) => s.accessToken)
   const user = useAuthStore((s) => s.user)
-  const [state, setState] = useState<AppState>(isAuthenticated ? 'folder-select' : 'auth')
+  const [state, setState] = useState<AppState>(isAuthenticated ? 'picker' : 'auth')
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null)
   const [startIndex, setStartIndex] = useState<number>(0)
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
@@ -53,9 +55,7 @@ function App() {
     if (!destinationFolder && accessToken && user) {
       setIsCreatingFolder(true)
       try {
-        const date = new Date().toISOString().split('T')[0]
-        const destName = `${date}_${folderName}_${user.name}`
-        const created = await createFolder(accessToken, destName)
+        const created = await createDestinationFolder(accessToken, folderName, user.name)
         setDestinationFolder(created)
       } catch {
         setCreateFolderError('Could not create destination folder')
@@ -65,28 +65,20 @@ function App() {
     }
   }
 
-  const handleFolderSelect = async (selection: { id: string; name: string; mimeType: string }) => {
+  const handleFolderSelect = async (selection: PickerSelection) => {
     setCreateFolderError(null)
 
-    if (selection.mimeType.startsWith('image/') && accessToken) {
-      // Image selection: find parent folder, load all images, find index
-      const parentFolder = await getFileParent(accessToken, selection.id)
-      const images = await listAllImages(accessToken, parentFolder.id)
-      const index = images.findIndex(img => img.id === selection.id)
-      setStartIndex(index >= 0 ? index : 0)
-      setSelectedFolder(parentFolder)
-      await autoCreateDestination(parentFolder.name)
-    } else {
-      // Folder selection: existing behavior
-      setStartIndex(0)
-      setSelectedFolder({ id: selection.id, name: selection.name })
-      await autoCreateDestination(selection.name)
-    }
+    if (!accessToken) return
+
+    const resolved = await resolveSelection(accessToken, selection)
+    setStartIndex(resolved.startIndex)
+    setSelectedFolder(resolved.folder)
+    await autoCreateDestination(resolved.folder.name)
 
     setState('swiping')
   }
 
-  if (state === 'folder-select' || !selectedFolder) {
+  if (state === 'picker' || !selectedFolder) {
     return (
       <div className="min-h-screen bg-zinc-950">
         <header className="bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
@@ -122,7 +114,7 @@ function App() {
         startIndex={startIndex}
         onComplete={() => setState('complete')}
         onBack={() => {
-          setState('folder-select')
+          setState('picker')
         }}
       />
     )
@@ -134,7 +126,7 @@ function App() {
         onSortAgain={() => setState('swiping')}
         onStartOver={() => {
           setSelectedFolder(null)
-          setState('folder-select')
+          setState('picker')
         }}
       />
     )

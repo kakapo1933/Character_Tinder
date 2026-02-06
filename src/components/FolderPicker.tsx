@@ -1,10 +1,5 @@
 import { useGooglePicker } from '../hooks/useGooglePicker'
-
-interface PickerSelection {
-  id: string
-  name: string
-  mimeType: string
-}
+import type { PickerSelection } from '../types/picker'
 
 interface FolderPickerProps {
   onFolderSelect: (selection: PickerSelection) => void

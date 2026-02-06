@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuthStore } from '../stores/authStore'
 import { usePhotoStore } from '../stores/photoStore'
-import { listAllImages, copyFile, deleteFile } from '../services/googleDriveApi'
+import { copyFile, deleteFile } from '../services/googleDriveApi'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import { useAutoHide } from '../hooks/useAutoHide'
 import { useImagePreloader } from '../hooks/useImagePreloader'
+import { usePhotoLoader } from '../hooks/usePhotoLoader'
 import { SwipeCard } from './SwipeCard'
 import { ProgressBar } from './ProgressBar'
 import { UndoButton } from './UndoButton'
@@ -37,7 +38,6 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
     keepIds,
     discardIds,
     history,
-    setPhotos,
     keep,
     discard,
     undo,
@@ -48,8 +48,7 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
   } = usePhotoStore()
 
   const setDestinationFolder = usePhotoStore((s) => s.setDestinationFolder)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { loading, error } = usePhotoLoader({ folderId: folder.id, accessToken, startIndex })
   const [toast, setToast] = useState<Toast | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [showDestinationPicker, setShowDestinationPicker] = useState(false)
@@ -131,24 +130,6 @@ export function SwipePage({ folder, onComplete, onBack, startIndex }: SwipePageP
 
   // Preload next images for smooth experience
   useImagePreloader(photos, currentIndex, accessToken)
-
-  useEffect(() => {
-    if (!accessToken) return
-
-    const loadPhotos = async () => {
-      try {
-        setLoading(true)
-        const images = await listAllImages(accessToken, folder.id)
-        setPhotos(images, startIndex ?? 0)
-      } catch {
-        setError('Failed to load photos')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadPhotos()
-  }, [accessToken, folder.id, setPhotos, startIndex])
 
   useEffect(() => {
     if (isComplete && photos.length > 0) {

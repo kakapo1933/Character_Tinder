@@ -1,8 +1,9 @@
 import { useCallback } from 'react'
 import { useAuthStore } from '../stores/authStore'
 import { config } from '../config'
+import type { PickerSelection } from '../types/picker'
 
-type OnSelect = (selection: { id: string; name: string; mimeType: string } | null) => void
+type OnSelect = (selection: PickerSelection | null) => void
 
 const PICKER_SCRIPT_URL = 'https://apis.google.com/js/api.js'
 
