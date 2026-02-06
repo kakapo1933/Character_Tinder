@@ -28,6 +28,9 @@ function App() {
   const validateDestinationFolder = usePhotoStore((s) => s.validateDestinationFolder)
   const { openPicker } = useGooglePicker()
   const pickerOpenedRef = useRef(false)
+  const [pickerCancelled, setPickerCancelled] = useState(false)
+  const [pickerError, setPickerError] = useState<string | null>(null)
+  const [pickerRetryCount, setPickerRetryCount] = useState(0)
 
   const autoCreateDestination = async (folderName: string) => {
     if (!destinationFolder && accessToken && user) {
@@ -65,16 +68,21 @@ function App() {
 
   // Auto-open picker when authenticated and in picker state
   useEffect(() => {
-    if (state === 'picker' && isAuthenticated && !pickerOpenedRef.current) {
+    if (state === 'picker' && isAuthenticated && !pickerOpenedRef.current && !pickerCancelled && !pickerError) {
       pickerOpenedRef.current = true
       openPicker((selection) => {
         pickerOpenedRef.current = false
         if (selection) {
           handleFolderSelect(selection)
+        } else {
+          setPickerCancelled(true)
         }
+      }).catch(() => {
+        pickerOpenedRef.current = false
+        setPickerError('Failed to load Google Picker')
       })
     }
-  }, [state, isAuthenticated, openPicker])
+  }, [state, isAuthenticated, openPicker, pickerCancelled, pickerError, pickerRetryCount])
 
   // Reset picker guard when leaving picker state
   useEffect(() => {
@@ -102,6 +110,46 @@ function App() {
   }
 
   if (state === 'picker' || !selectedFolder) {
+    if (pickerError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+          <div className="text-center">
+            <p className="text-rose-400 mb-4">{pickerError}</p>
+            <button
+              onClick={() => {
+                setPickerError(null)
+                pickerOpenedRef.current = false
+                setPickerRetryCount((c) => c + 1)
+              }}
+              className="px-4 py-2 bg-zinc-800 text-zinc-200 rounded-lg hover:bg-zinc-700"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    if (pickerCancelled) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-zinc-100 mb-2">Pick a folder</h1>
+            <p className="text-zinc-400 mb-6">Select a folder with photos to sort</p>
+            <button
+              onClick={() => {
+                setPickerCancelled(false)
+                pickerOpenedRef.current = false
+              }}
+              className="px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors"
+            >
+              Select folder
+            </button>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="min-h-screen bg-zinc-950">
         <header className="bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
