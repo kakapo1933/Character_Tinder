@@ -5,3 +5,8 @@ html, body {
   color: #fafafa;
   min-height: 100dvh;
 }
+
+/* Override Google Picker's gray backdrop to match our dark theme */
+.picker-dialog-bg {
+  background-color: black !important;
+}

@@ -15,6 +15,7 @@ type AppState = 'auth' | 'picker' | 'swiping' | 'complete'
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const accessToken = useAuthStore((s) => s.accessToken)
+  const logout = useAuthStore((s) => s.logout)
   const [state, setState] = useState<AppState>(isAuthenticated ? 'picker' : 'auth')
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null)
   const [startIndex, setStartIndex] = useState<number>(0)
@@ -103,6 +104,12 @@ function App() {
             >
               Try again
             </button>
+            <button
+              onClick={logout}
+              className="block mx-auto mt-4 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              Sign out
+            </button>
           </div>
         </div>
       )
@@ -123,25 +130,18 @@ function App() {
             >
               Select folder
             </button>
+            <button
+              onClick={logout}
+              className="block mx-auto mt-4 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              Sign out
+            </button>
           </div>
         </div>
       )
     }
 
-    return (
-      <div className="min-h-screen bg-zinc-950">
-        <header className="bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
-          <h1 className="font-bold text-xl text-zinc-100">Character Tinder</h1>
-          <GoogleSignInButton />
-        </header>
-        <main className="max-w-md mx-auto mt-8 bg-zinc-900 rounded-lg border border-zinc-800">
-          <div className="p-4 border-b border-zinc-700">
-            <h2 className="font-medium text-zinc-100">Select a folder</h2>
-            <p className="text-sm text-zinc-400">Choose a folder with photos to sort</p>
-          </div>
-        </main>
-      </div>
-    )
+    return <div className="min-h-screen bg-zinc-950" />
   }
 
   if (state === 'swiping') {
