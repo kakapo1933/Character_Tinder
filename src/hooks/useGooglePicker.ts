@@ -62,8 +62,13 @@ export function useGooglePicker() {
 
       await loadPickerScript()
 
+      const sharedFoldersView = new window.google.picker.DocsView()
+        .setOwnedByMe(false)
+        .setMimeTypes('application/vnd.google-apps.folder')
+
       const picker = new window.google.picker.PickerBuilder()
         .addView(window.google.picker.ViewId.FOLDERS)
+        .addView(sharedFoldersView)
         .setOAuthToken(accessToken)
         .setDeveloperKey(config.googleApiKey)
         .setAppId(config.googleAppId)

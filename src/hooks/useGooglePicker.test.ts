@@ -8,6 +8,7 @@ import {
   simulatePickerCancel,
   mockPickerBuilder,
   mockPicker,
+  mockDocsViewInstance,
 } from '../mocks/googlePicker'
 import { useAuthStore } from '../stores/authStore'
 
@@ -31,6 +32,8 @@ describe('useGooglePicker', () => {
     mockPickerBuilder.enableFeature.mockClear()
     mockPickerBuilder.build.mockClear()
     mockPicker.setVisible.mockClear()
+    mockDocsViewInstance.setOwnedByMe.mockClear()
+    mockDocsViewInstance.setMimeTypes.mockClear()
   })
 
   it('returns openPicker function', () => {
@@ -124,6 +127,63 @@ describe('useGooglePicker', () => {
 
     expect(called).toBe(true)
     expect(selectedFolder).toBeNull()
+  })
+
+  it('adds a DocsView for shared folders as second view', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockPickerBuilder.addView).toHaveBeenCalledTimes(2)
+    expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(1, 'FOLDERS')
+    expect(mockPickerBuilder.addView).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        setOwnedByMe: expect.any(Function),
+        setMimeTypes: expect.any(Function),
+      })
+    )
+  })
+
+  it('configures shared DocsView to show only folders', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockDocsViewInstance.setMimeTypes).toHaveBeenCalledWith(
+      'application/vnd.google-apps.folder'
+    )
+  })
+
+  it('configures shared DocsView with setOwnedByMe(false)', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockDocsViewInstance.setOwnedByMe).toHaveBeenCalledWith(false)
+  })
+
+  it('calls onSelect when folder is picked from shared tab', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+    let selectedFolder: { id: string; name: string } | null = null
+
+    await act(async () => {
+      result.current.openPicker((folder) => {
+        selectedFolder = folder
+      })
+    })
+
+    act(() => {
+      simulatePickerSelect({ id: 'shared-folder-1', name: 'Shared Photos' })
+    })
+
+    expect(selectedFolder).toEqual({ id: 'shared-folder-1', name: 'Shared Photos' })
   })
 
   it('does not open picker when not authenticated', async () => {

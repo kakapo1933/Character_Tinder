@@ -1,6 +1,12 @@
 declare namespace google.picker {
+  class DocsView {
+    constructor(viewId?: string)
+    setOwnedByMe(owned: boolean): this
+    setMimeTypes(mimeTypes: string): this
+  }
+
   class PickerBuilder {
-    addView(viewId: string): this
+    addView(viewId: string | DocsView): this
     setOAuthToken(token: string): this
     setDeveloperKey(key: string): this
     setAppId(appId: string): this

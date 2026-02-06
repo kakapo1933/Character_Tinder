@@ -38,8 +38,19 @@ class MockPickerBuilder {
   build = mockPickerBuilder.build
 }
 
+const mockDocsViewInstance = {
+  setOwnedByMe: vi.fn().mockReturnThis(),
+  setMimeTypes: vi.fn().mockReturnThis(),
+}
+
+class MockDocsView {
+  setOwnedByMe = mockDocsViewInstance.setOwnedByMe
+  setMimeTypes = mockDocsViewInstance.setMimeTypes
+}
+
 export const mockGooglePicker = {
   PickerBuilder: MockPickerBuilder,
+  DocsView: MockDocsView,
   ViewId: {
     DOCS: 'DOCS',
     FOLDERS: 'FOLDERS',
@@ -107,4 +118,4 @@ export function cleanupGooglePickerMock() {
   storedCallback = null
 }
 
-export { mockPickerBuilder, mockPicker }
+export { mockPickerBuilder, mockPicker, mockDocsViewInstance }
