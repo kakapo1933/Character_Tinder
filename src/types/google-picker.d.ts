@@ -3,6 +3,8 @@ declare namespace google.picker {
     constructor(viewId?: string)
     setOwnedByMe(owned: boolean): this
     setMimeTypes(mimeTypes: string): this
+    setIncludeFolders(included: boolean): this
+    setSelectFolderEnabled(enabled: boolean): this
   }
 
   class PickerBuilder {

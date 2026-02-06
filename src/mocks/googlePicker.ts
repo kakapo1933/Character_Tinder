@@ -41,11 +41,15 @@ class MockPickerBuilder {
 const mockDocsViewInstance = {
   setOwnedByMe: vi.fn().mockReturnThis(),
   setMimeTypes: vi.fn().mockReturnThis(),
+  setIncludeFolders: vi.fn().mockReturnThis(),
+  setSelectFolderEnabled: vi.fn().mockReturnThis(),
 }
 
 class MockDocsView {
   setOwnedByMe = mockDocsViewInstance.setOwnedByMe
   setMimeTypes = mockDocsViewInstance.setMimeTypes
+  setIncludeFolders = mockDocsViewInstance.setIncludeFolders
+  setSelectFolderEnabled = mockDocsViewInstance.setSelectFolderEnabled
 }
 
 export const mockGooglePicker = {

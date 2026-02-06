@@ -34,6 +34,8 @@ describe('useGooglePicker', () => {
     mockPicker.setVisible.mockClear()
     mockDocsViewInstance.setOwnedByMe.mockClear()
     mockDocsViewInstance.setMimeTypes.mockClear()
+    mockDocsViewInstance.setIncludeFolders.mockClear()
+    mockDocsViewInstance.setSelectFolderEnabled.mockClear()
   })
 
   it('returns openPicker function', () => {
@@ -167,6 +169,26 @@ describe('useGooglePicker', () => {
     })
 
     expect(mockDocsViewInstance.setOwnedByMe).toHaveBeenCalledWith(false)
+  })
+
+  it('configures shared DocsView to include folders in view', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockDocsViewInstance.setIncludeFolders).toHaveBeenCalledWith(true)
+  })
+
+  it('configures shared DocsView to allow folder selection', async () => {
+    const { result } = renderHook(() => useGooglePicker())
+
+    await act(async () => {
+      result.current.openPicker(() => {})
+    })
+
+    expect(mockDocsViewInstance.setSelectFolderEnabled).toHaveBeenCalledWith(true)
   })
 
   it('calls onSelect when folder is picked from shared tab', async () => {

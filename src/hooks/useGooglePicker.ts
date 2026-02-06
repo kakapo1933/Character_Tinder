@@ -64,6 +64,8 @@ export function useGooglePicker() {
 
       const sharedFoldersView = new window.google.picker.DocsView()
         .setOwnedByMe(false)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
         .setMimeTypes('application/vnd.google-apps.folder')
 
       const picker = new window.google.picker.PickerBuilder()
