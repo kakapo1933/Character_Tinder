@@ -87,7 +87,7 @@ describe('useAutoHide', () => {
   })
 
   it('cleans up timer on unmount', () => {
-    const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout')
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
     const { unmount } = renderHook(() => useAutoHide())
 
     unmount()
