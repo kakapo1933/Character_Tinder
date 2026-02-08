@@ -7,25 +7,26 @@ import { SwipePage } from './components/SwipePage'
 import { CompletionState } from './components/CompletionState'
 import { useGooglePicker } from './hooks/useGooglePicker'
 import { resolveSelection } from './services/folderSelection'
+import { FolderSelectPage } from './components/FolderSelectPage'
+import { validateToken } from './services/googleDriveApi'
 import type { DriveFolder, DriveImage } from './services/googleDriveApi'
 import type { PickerSelection } from './types/picker'
 
-type AppState = 'auth' | 'picker' | 'swiping' | 'complete'
+type AppState = 'auth' | 'folder-select' | 'picker' | 'swiping' | 'complete'
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const accessToken = useAuthStore((s) => s.accessToken)
   const logout = useAuthStore((s) => s.logout)
-  const [state, setState] = useState<AppState>(isAuthenticated ? 'picker' : 'auth')
+  const [state, setState] = useState<AppState>(isAuthenticated ? 'folder-select' : 'auth')
   const [selectedFolder, setSelectedFolder] = useState<DriveFolder | null>(null)
   const [startIndex, setStartIndex] = useState<number>(0)
   const [resolvedImages, setResolvedImages] = useState<DriveImage[] | undefined>(undefined)
   const validateDestinationFolder = usePhotoStore((s) => s.validateDestinationFolder)
   const { openPicker } = useGooglePicker()
   const pickerOpenedRef = useRef(false)
-  const [pickerCancelled, setPickerCancelled] = useState(false)
-  const [pickerError, setPickerError] = useState<string | null>(null)
-  const [pickerRetryCount, setPickerRetryCount] = useState(0)
+  const [isValidating, setIsValidating] = useState(false)
+  const [folderSelectError, setFolderSelectError] = useState<string | null>(null)
 
   const handleFolderSelect = async (selection: PickerSelection) => {
     if (!accessToken) return
@@ -38,6 +39,19 @@ function App() {
     setState('swiping')
   }
 
+  const handleOpenPicker = async () => {
+    if (!accessToken) return
+    setIsValidating(true)
+    setFolderSelectError(null)
+    const isValid = await validateToken(accessToken)
+    setIsValidating(false)
+    if (isValid) {
+      setState('picker')
+    } else {
+      logout()
+    }
+  }
+
   // Validate destination folder on mount (check if it still exists)
   useEffect(() => {
     if (accessToken) {
@@ -47,21 +61,22 @@ function App() {
 
   // Auto-open picker when authenticated and in picker state
   useEffect(() => {
-    if (state === 'picker' && isAuthenticated && !pickerOpenedRef.current && !pickerCancelled && !pickerError) {
+    if (state === 'picker' && isAuthenticated && !pickerOpenedRef.current) {
       pickerOpenedRef.current = true
       openPicker((selection) => {
         pickerOpenedRef.current = false
         if (selection) {
           handleFolderSelect(selection)
         } else {
-          setPickerCancelled(true)
+          setState('folder-select')
         }
       }).catch(() => {
         pickerOpenedRef.current = false
-        setPickerError('Failed to load Google Picker')
+        setFolderSelectError('Failed to load Google Picker')
+        setState('folder-select')
       })
     }
-  }, [state, isAuthenticated, openPicker, pickerCancelled, pickerError, pickerRetryCount])
+  }, [state, isAuthenticated, openPicker])
 
   // Reset picker guard when leaving picker state
   useEffect(() => {
@@ -88,63 +103,26 @@ function App() {
     )
   }
 
-  if (state === 'picker' || !selectedFolder) {
-    if (pickerError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-          <div className="text-center">
-            <p className="text-rose-400 mb-4">{pickerError}</p>
-            <button
-              onClick={() => {
-                setPickerError(null)
-                pickerOpenedRef.current = false
-                setPickerRetryCount((c) => c + 1)
-              }}
-              className="px-4 py-2 bg-zinc-800 text-zinc-200 rounded-lg hover:bg-zinc-700"
-            >
-              Try again
-            </button>
-            <button
-              onClick={logout}
-              className="block mx-auto mt-4 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      )
-    }
+  if (state === 'folder-select') {
+    return (
+      <FolderSelectPage
+        onOpenPicker={handleOpenPicker}
+        onSignOut={logout}
+        isValidating={isValidating}
+        error={folderSelectError}
+      />
+    )
+  }
 
-    if (pickerCancelled) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-zinc-100 mb-2">Pick a folder</h1>
-            <p className="text-zinc-400 mb-6">Select a folder with photos to sort</p>
-            <button
-              onClick={() => {
-                setPickerCancelled(false)
-                pickerOpenedRef.current = false
-              }}
-              className="px-6 py-3 bg-sky-500 text-white rounded-lg hover:bg-sky-600 transition-colors"
-            >
-              Select folder
-            </button>
-            <button
-              onClick={logout}
-              className="block mx-auto mt-4 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      )
-    }
-
+  if (state === 'picker') {
     return <div className="min-h-screen bg-zinc-950" />
   }
 
   if (state === 'swiping') {
+    if (!selectedFolder) {
+      setState('folder-select')
+      return null
+    }
     return (
       <SwipePage
         folder={selectedFolder}
@@ -152,7 +130,7 @@ function App() {
         initialPhotos={resolvedImages}
         onComplete={() => setState('complete')}
         onBack={() => {
-          setState('picker')
+          setState('folder-select')
           setResolvedImages(undefined)
         }}
       />
@@ -166,7 +144,7 @@ function App() {
         onStartOver={() => {
           setSelectedFolder(null)
           setResolvedImages(undefined)
-          setState('picker')
+          setState('folder-select')
         }}
       />
     )

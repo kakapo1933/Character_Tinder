@@ -42,7 +42,7 @@ describe('Back to Picker', () => {
     mockPicker.setVisible.mockClear()
   })
 
-  it('clicking Back on SwipePage re-opens the picker', async () => {
+  it('clicking Back on SwipePage returns to FolderSelectPage', async () => {
     const user = userEvent.setup()
 
     useAuthStore.getState().login(
@@ -54,6 +54,10 @@ describe('Back to Picker', () => {
       http.get(DRIVE_API, ({ request }) => {
         const url = new URL(request.url)
         const q = url.searchParams.get('q') || ''
+        // validateToken call
+        if (url.searchParams.get('pageSize') === '1' && url.searchParams.get('fields') === 'files(id)') {
+          return HttpResponse.json({ files: [{ id: 'dummy' }] })
+        }
         // List images in the selected folder
         if (q.includes("'folder-1' in parents") && q.includes('mimeType contains')) {
           return HttpResponse.json({ files: mockImages })
@@ -70,7 +74,11 @@ describe('Back to Picker', () => {
 
     render(<App />)
 
-    // Picker auto-opens
+    // Click Choose Folder on FolderSelectPage
+    const chooseFolderBtn = await screen.findByRole('button', { name: 'Choose Folder' })
+    await user.click(chooseFolderBtn)
+
+    // Picker auto-opens after validation
     await waitFor(() => {
       expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
     })
@@ -83,15 +91,13 @@ describe('Back to Picker', () => {
       expect(screen.getByTestId('swipe-card')).toBeInTheDocument()
     })
 
-    // Clear the mock to track re-open
-    mockPicker.setVisible.mockClear()
-
     // Click Back button
     await user.click(screen.getByText('← Back'))
 
-    // Picker should re-open
+    // Should return to FolderSelectPage (not directly to picker)
     await waitFor(() => {
-      expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
+      expect(screen.getByRole('button', { name: 'Choose Folder' })).toBeInTheDocument()
     })
+    expect(screen.getByText('Select a folder with photos to sort')).toBeInTheDocument()
   })
 })

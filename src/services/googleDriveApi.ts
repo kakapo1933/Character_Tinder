@@ -18,6 +18,23 @@ export interface DriveImage {
   webContentLink?: string
 }
 
+export async function validateToken(accessToken: string): Promise<boolean> {
+  try {
+    const params = new URLSearchParams({
+      pageSize: '1',
+      fields: 'files(id)',
+    })
+
+    const response = await fetch(`${DRIVE_API}?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+
+    return response.ok
+  } catch {
+    return false
+  }
+}
+
 export async function listFolders(accessToken: string, parentId?: string): Promise<DriveFolder[]> {
   const query = parentId
     ? `mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`

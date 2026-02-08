@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from './mocks/server'
@@ -56,6 +57,12 @@ describe('App', () => {
       server.use(
         http.get(DRIVE_API, ({ request }) => {
           const url = new URL(request.url)
+
+          // validateToken check
+          if (url.searchParams.get('pageSize') === '1' && url.searchParams.get('fields') === 'files(id)') {
+            return HttpResponse.json({ files: [{ id: 'dummy' }] })
+          }
+
           const q = url.searchParams.get('q') || ''
           const isImageQuery = q.includes("mimeType contains 'image/'")
 
@@ -74,7 +81,11 @@ describe('App', () => {
     it('enters swiping directly after picking a folder (auto-creates destination)', async () => {
       render(<App />)
 
-      // Picker auto-opens when authenticated
+      // User sees FolderSelectPage and clicks Choose Folder
+      const chooseFolderBtn = await screen.findByRole('button', { name: 'Choose Folder' })
+      await userEvent.click(chooseFolderBtn)
+
+      // Picker opens after token validation
       await waitFor(() => {
         expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
       })
@@ -100,7 +111,11 @@ describe('App', () => {
 
       render(<App />)
 
-      // Picker auto-opens when authenticated
+      // User sees FolderSelectPage and clicks Choose Folder
+      const chooseFolderBtn = await screen.findByRole('button', { name: 'Choose Folder' })
+      await userEvent.click(chooseFolderBtn)
+
+      // Picker opens after token validation
       await waitFor(() => {
         expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
       })
@@ -126,7 +141,11 @@ describe('App', () => {
 
       render(<App />)
 
-      // Picker auto-opens when authenticated
+      // User sees FolderSelectPage and clicks Choose Folder
+      const chooseFolderBtn = await screen.findByRole('button', { name: 'Choose Folder' })
+      await userEvent.click(chooseFolderBtn)
+
+      // Picker opens after token validation
       await waitFor(() => {
         expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
       })
@@ -167,7 +186,11 @@ describe('App', () => {
     it('auto-created folder name includes date, source folder name, and user name', async () => {
       render(<App />)
 
-      // Picker auto-opens when authenticated
+      // User sees FolderSelectPage and clicks Choose Folder
+      const chooseFolderBtn = await screen.findByRole('button', { name: 'Choose Folder' })
+      await userEvent.click(chooseFolderBtn)
+
+      // Picker opens after token validation
       await waitFor(() => {
         expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
       })
@@ -218,9 +241,15 @@ describe('App', () => {
 
           return HttpResponse.json({ id: params.fileId, name: 'Unknown' })
         }),
-        // listAllImages for the parent folder
+        // listAllImages for the parent folder (+ validateToken)
         http.get(DRIVE_API, ({ request }) => {
           const url = new URL(request.url)
+
+          // validateToken check
+          if (url.searchParams.get('pageSize') === '1' && url.searchParams.get('fields') === 'files(id)') {
+            return HttpResponse.json({ files: [{ id: 'dummy' }] })
+          }
+
           const q = url.searchParams.get('q') || ''
           const isImageQuery = q.includes("mimeType contains 'image/'")
 
@@ -240,7 +269,11 @@ describe('App', () => {
     it('image selection triggers getFileParent and starts swiping from correct index', async () => {
       render(<App />)
 
-      // Picker auto-opens when authenticated
+      // User sees FolderSelectPage and clicks Choose Folder
+      const chooseFolderBtn = await screen.findByRole('button', { name: 'Choose Folder' })
+      await userEvent.click(chooseFolderBtn)
+
+      // Picker opens after token validation
       await waitFor(() => {
         expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
       })
@@ -265,10 +298,16 @@ describe('App', () => {
     it('passes pre-loaded images to SwipePage so listAllImages is only called once', async () => {
       let listImagesCallCount = 0
 
-      // Override listAllImages handler to count calls
+      // Override listAllImages handler to count calls (+ validateToken)
       server.use(
         http.get(DRIVE_API, ({ request }) => {
           const url = new URL(request.url)
+
+          // validateToken check
+          if (url.searchParams.get('pageSize') === '1' && url.searchParams.get('fields') === 'files(id)') {
+            return HttpResponse.json({ files: [{ id: 'dummy' }] })
+          }
+
           const q = url.searchParams.get('q') || ''
           const isImageQuery = q.includes("mimeType contains 'image/'")
 
@@ -282,7 +321,11 @@ describe('App', () => {
 
       render(<App />)
 
-      // Picker auto-opens when authenticated
+      // User sees FolderSelectPage and clicks Choose Folder
+      const chooseFolderBtn = await screen.findByRole('button', { name: 'Choose Folder' })
+      await userEvent.click(chooseFolderBtn)
+
+      // Picker opens after token validation
       await waitFor(() => {
         expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
       })
@@ -307,7 +350,11 @@ describe('App', () => {
     it('folder selection still works as before (no startIndex)', async () => {
       render(<App />)
 
-      // Picker auto-opens when authenticated
+      // User sees FolderSelectPage and clicks Choose Folder
+      const chooseFolderBtn = await screen.findByRole('button', { name: 'Choose Folder' })
+      await userEvent.click(chooseFolderBtn)
+
+      // Picker opens after token validation
       await waitFor(() => {
         expect(mockPicker.setVisible).toHaveBeenCalledWith(true)
       })

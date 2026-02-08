@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from '../mocks/server'
-import { listFolders, listSharedFolders, listSharedDrives, listSharedDriveFolders, listImages, listAllImages, copyFile, deleteFile, createFolder, getFolder, getFileParent, type DriveFolder, type DriveImage, type SharedDrive } from './googleDriveApi'
+import { listFolders, listSharedFolders, listSharedDrives, listSharedDriveFolders, listImages, listAllImages, copyFile, deleteFile, createFolder, getFolder, getFileParent, validateToken, type DriveFolder, type DriveImage, type SharedDrive } from './googleDriveApi'
 
 const DRIVE_API = 'https://www.googleapis.com/drive/v3/files'
 const DRIVES_API = 'https://www.googleapis.com/drive/v3/drives'
@@ -838,6 +838,52 @@ describe('googleDriveApi', () => {
       )
 
       await expect(createFolder('bad-token', 'Test', 'parent')).rejects.toThrow()
+    })
+  })
+
+  describe('validateToken', () => {
+    it('returns true when API responds with 200', async () => {
+      server.use(
+        http.get(DRIVE_API, () => HttpResponse.json({ files: [] }))
+      )
+
+      const result = await validateToken('valid-token')
+      expect(result).toBe(true)
+    })
+
+    it('returns false when API responds with 401', async () => {
+      server.use(
+        http.get(DRIVE_API, () =>
+          HttpResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        )
+      )
+
+      const result = await validateToken('expired-token')
+      expect(result).toBe(false)
+    })
+
+    it('returns false when API responds with 403', async () => {
+      server.use(
+        http.get(DRIVE_API, () =>
+          HttpResponse.json({ error: 'Forbidden' }, { status: 403 })
+        )
+      )
+
+      const result = await validateToken('forbidden-token')
+      expect(result).toBe(false)
+    })
+
+    it('sends correct Authorization header', async () => {
+      let authHeader: string | null = null
+      server.use(
+        http.get(DRIVE_API, ({ request }) => {
+          authHeader = request.headers.get('Authorization')
+          return HttpResponse.json({ files: [] })
+        })
+      )
+
+      await validateToken('my-token')
+      expect(authHeader).toBe('Bearer my-token')
     })
   })
 })
